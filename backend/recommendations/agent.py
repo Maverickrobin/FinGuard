@@ -53,6 +53,10 @@ def generate_recommendations() -> List[Dict]:
         # Step 4: Store in database
         rec_id = f"rec-{uuid.uuid4().hex[:12]}"
         
+        suggested = trigger.get("suggested_action") or {}
+        action_type = suggested.get("type")
+        action_params = json.dumps(suggested.get("params", {})) if suggested else None
+
         with get_db() as conn:
             conn.execute("""
                 INSERT OR IGNORE INTO recommendations
@@ -65,8 +69,8 @@ def generate_recommendations() -> List[Dict]:
                 rec["title"],
                 rec["description"],
                 impact["level"],
-                trigger.get("suggested_action", {}).get("type"),
-                json.dumps(trigger.get("suggested_action", {}).get("params", {})),
+                action_type,
+                action_params,
                 trigger.get("context", {}).get("anomaly_id"),
             ))
         
