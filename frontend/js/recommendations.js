@@ -120,3 +120,9 @@ async function acceptRec(recId) {
 async function dismissRec(recId) {
     showToast('Recommendation dismissed', 'info');
 }
+
+// Export to window
+window.renderRecommendations = renderRecommendations;
+window.runRecommendations = runRecommendations;
+window.acceptRec = acceptRec;
+window.dismissRec = dismissRec;

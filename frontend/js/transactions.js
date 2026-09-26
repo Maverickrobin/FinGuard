@@ -115,3 +115,8 @@ function changeTxnPage(page) {
     txnCurrentPage = page;
     renderTransactions(document.getElementById('view-container'));
 }
+
+// Export to window
+window.renderTransactions = renderTransactions;
+window.filterTransactions = filterTransactions;
+window.changeTxnPage = changeTxnPage;

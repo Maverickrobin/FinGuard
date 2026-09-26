@@ -85,17 +85,23 @@ const CHART_COLORS = {
     text: '#94a3b8',
 };
 
-Chart.defaults.color = CHART_COLORS.text;
-Chart.defaults.borderColor = CHART_COLORS.grid;
-Chart.defaults.font.family = "'Inter', sans-serif";
-Chart.defaults.font.size = 12;
-Chart.defaults.plugins.legend.labels.usePointStyle = true;
-Chart.defaults.plugins.legend.labels.pointStyleWidth = 8;
-Chart.defaults.animation.duration = 600;
+if (typeof Chart !== 'undefined') {
+    Chart.defaults.color = CHART_COLORS.text;
+    Chart.defaults.borderColor = CHART_COLORS.grid;
+    Chart.defaults.font.family = "'Inter', sans-serif";
+    Chart.defaults.font.size = 12;
+    Chart.defaults.plugins.legend.labels.usePointStyle = true;
+    Chart.defaults.plugins.legend.labels.pointStyleWidth = 8;
+    Chart.defaults.animation.duration = 600;
+}
 
 // Destroy chart by canvas ID if it exists
 const chartInstances = {};
 function getOrCreateChart(canvasId, config) {
+    if (typeof Chart === 'undefined') {
+        console.warn('Chart.js is not loaded, skipping chart for ' + canvasId);
+        return null;
+    }
     if (chartInstances[canvasId]) {
         chartInstances[canvasId].destroy();
     }
@@ -105,20 +111,33 @@ function getOrCreateChart(canvasId, config) {
     return chartInstances[canvasId];
 }
 
+// Export all core utilities to window for view modules
+window.API = API;
+window.formatCurrency = formatCurrency;
+window.formatDate = formatDate;
+window.formatDateTime = formatDateTime;
+window.apiGet = apiGet;
+window.apiPost = apiPost;
+window.showToast = showToast;
+window.showLoading = showLoading;
+window.showEmpty = showEmpty;
+window.CHART_COLORS = CHART_COLORS;
+window.getOrCreateChart = getOrCreateChart;
+
 // ─── Router ─────────────────────────────────────────────────
 const views = {
-    dashboard: { title: 'Dashboard', render: renderDashboard },
-    transactions: { title: 'Transactions', render: renderTransactions },
-    analysis: { title: 'Anomalies & Forecast', render: renderAnalysis },
-    scenarios: { title: 'Scenario Simulator', render: renderScenarios },
-    recommendations: { title: 'Recommendations', render: renderRecommendations },
-    approval: { title: 'Approval Gate', render: renderApproval },
-    audit: { title: 'Audit Trail', render: renderAudit },
+    dashboard: { title: 'Dashboard', render: (c) => window.renderDashboard(c) },
+    transactions: { title: 'Transactions', render: (c) => window.renderTransactions(c) },
+    analysis: { title: 'Anomalies & Forecast', render: (c) => window.renderAnalysis(c) },
+    scenarios: { title: 'Scenario Simulator', render: (c) => window.renderScenarios(c) },
+    recommendations: { title: 'Recommendations', render: (c) => window.renderRecommendations(c) },
+    approval: { title: 'Approval Gate', render: (c) => window.renderApproval(c) },
+    audit: { title: 'Audit Trail', render: (c) => renderAudit(c) },
 };
 
 let currentView = 'dashboard';
 
-function navigateTo(viewName) {
+async function navigateTo(viewName) {
     if (!views[viewName]) return;
     
     currentView = viewName;
@@ -129,25 +148,31 @@ function navigateTo(viewName) {
     });
     
     // Update title
-    document.getElementById('page-title').textContent = views[viewName].title;
+    const titleEl = document.getElementById('page-title');
+    if (titleEl) titleEl.textContent = views[viewName].title;
     
     // Render view
     const container = document.getElementById('view-container');
     showLoading(container);
     
     try {
-        views[viewName].render(container);
+        await views[viewName].render(container);
     } catch (e) {
         console.error('View render error:', e);
-        container.innerHTML = `<div class="empty-state"><div class="empty-state-text">Error loading view</div></div>`;
+        container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠️</div><div class="empty-state-text">Error loading view</div><div class="empty-state-hint">${e.message || ''}</div></div>`;
     }
     
     // Close mobile sidebar
-    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebar')?.classList.remove('open');
 }
 
 // ─── Init ───────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
+let isAppInitialized = false;
+
+function initApp() {
+    if (isAppInitialized) return;
+    isAppInitialized = true;
+
     // Nav links
     document.querySelectorAll('.nav-link').forEach(link => {
         link.addEventListener('click', (e) => {
@@ -157,12 +182,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     // Mobile menu
-    document.getElementById('menu-toggle').addEventListener('click', () => {
-        document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('menu-toggle')?.addEventListener('click', () => {
+        document.getElementById('sidebar')?.classList.toggle('open');
     });
     
     // Run analysis button
-    document.getElementById('btn-run-analysis').addEventListener('click', async () => {
+    document.getElementById('btn-run-analysis')?.addEventListener('click', async () => {
         try {
             showToast('Running analysis pipeline...', 'info');
             
@@ -185,14 +210,22 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     // Modal close
-    document.getElementById('edit-modal-close').addEventListener('click', closeModal);
-    document.getElementById('edit-modal-cancel').addEventListener('click', closeModal);
+    document.getElementById('edit-modal-close')?.addEventListener('click', closeModal);
+    document.getElementById('edit-modal-cancel')?.addEventListener('click', closeModal);
     document.querySelector('.modal-backdrop')?.addEventListener('click', closeModal);
     
     // Load initial view
     navigateTo('dashboard');
     updateBadges();
-});
+}
+
+window.initApp = initApp;
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initApp);
+} else {
+    setTimeout(initApp, 0);
+}
 
 async function updateBadges() {
     try {
@@ -220,6 +253,17 @@ async function updateBadges() {
 
 function closeModal() {
     document.getElementById('edit-modal').style.display = 'none';
+}
+
+function openEditModalById(actionId) {
+    const action = (window.pendingActionsCache && window.pendingActionsCache[actionId]) || null;
+    if (action) {
+        openEditModal(action);
+    } else {
+        apiGet(`/api/pending-actions/${actionId}`)
+            .then(act => openEditModal(act))
+            .catch(err => showToast('Failed to load action: ' + err.message, 'error'));
+    }
 }
 
 function openEditModal(action) {

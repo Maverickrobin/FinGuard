@@ -243,3 +243,8 @@ function renderScenarioResults(container, data) {
         },
     });
 }
+
+// Export to window
+window.renderScenarios = renderScenarios;
+window.runScenarioTemplate = runScenarioTemplate;
+window.runCustomScenario = runCustomScenario;

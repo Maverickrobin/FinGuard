@@ -3,9 +3,13 @@ async function renderDashboard(container) {
     try {
         const data = await apiGet('/api/dashboard');
         
+        const monthlySummary = data.monthly_summary || [];
+        const categoryBreakdown = data.category_breakdown || [];
+        const goals = data.goals || [];
+
         // Calculate income/expense for latest month
-        const latest = data.monthly_summary[data.monthly_summary.length - 1] || {};
-        const prevMonth = data.monthly_summary[data.monthly_summary.length - 2] || {};
+        const latest = monthlySummary[monthlySummary.length - 1] || {};
+        const prevMonth = monthlySummary[monthlySummary.length - 2] || {};
         
         const incomeChange = prevMonth.income > 0 
             ? ((latest.income - prevMonth.income) / prevMonth.income * 100).toFixed(1) 
@@ -33,8 +37,8 @@ async function renderDashboard(container) {
                 </div>
                 <div class="stat-card accent-warning">
                     <div class="stat-label">Anomalies</div>
-                    <div class="stat-value">${data.anomaly_count}</div>
-                    <div class="stat-change">${data.pending_actions_count} pending approvals</div>
+                    <div class="stat-value">${data.anomaly_count || 0}</div>
+                    <div class="stat-change">${data.pending_actions_count || 0} pending approvals</div>
                 </div>
             </div>
 
@@ -69,7 +73,7 @@ async function renderDashboard(container) {
                 <div class="card-header">
                     <div class="card-title">Budget vs Actual Spending</div>
                 </div>
-                ${data.category_breakdown
+                ${categoryBreakdown
                     .filter(c => c.budget != null)
                     .map(c => {
                         const pct = c.percentage || 0;
@@ -96,7 +100,7 @@ async function renderDashboard(container) {
                 <div class="card-header">
                     <div class="card-title">Financial Goals</div>
                 </div>
-                ${data.goals.map(g => {
+                ${goals.map(g => {
                     const pct = g.target_amount > 0 ? (g.current_amount / g.target_amount * 100) : 0;
                     return `
                         <div style="margin-bottom:16px">
@@ -104,7 +108,7 @@ async function renderDashboard(container) {
                                 <div>
                                     <div style="font-weight:600;font-size:14px">${g.name}</div>
                                     <div style="font-size:12px;color:var(--text-tertiary)">
-                                        Deadline: ${formatDate(g.deadline)} · ₹${g.monthly_contribution.toLocaleString()}/month
+                                        Deadline: ${formatDate(g.deadline)} · ₹${(g.monthly_contribution || 0).toLocaleString()}/month
                                     </div>
                                 </div>
                                 <div style="text-align:right">
@@ -124,9 +128,18 @@ async function renderDashboard(container) {
 
         container.innerHTML = html;
 
-        // Render charts
-        renderIncomeExpenseChart(data.monthly_summary);
-        renderCategoryChart(data.category_breakdown);
+        // Render charts safely
+        try {
+            renderIncomeExpenseChart(monthlySummary);
+        } catch (chartErr) {
+            console.warn('Income/Expense chart error:', chartErr);
+        }
+
+        try {
+            renderCategoryChart(categoryBreakdown);
+        } catch (chartErr) {
+            console.warn('Category chart error:', chartErr);
+        }
 
     } catch (e) {
         showEmpty(container, '❌', 'Failed to load dashboard', e.message);
@@ -221,3 +234,6 @@ function renderCategoryChart(categories) {
         },
     });
 }
+
+// Export to window for global access
+window.renderDashboard = renderDashboard;

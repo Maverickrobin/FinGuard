@@ -28,6 +28,7 @@ def detect_anomalies() -> List[Dict]:
     """
     # Clear previous anomalies (re-detect fresh)
     with get_db() as conn:
+        conn.execute("UPDATE recommendations SET related_anomaly_id = NULL WHERE related_anomaly_id IS NOT NULL")
         conn.execute("DELETE FROM anomalies")
     
     anomalies = []

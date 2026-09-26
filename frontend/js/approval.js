@@ -95,6 +95,9 @@ async function renderApproval(container) {
 }
 
 function renderApprovalCard(action) {
+    window.pendingActionsCache = window.pendingActionsCache || {};
+    window.pendingActionsCache[action.id] = action;
+
     let params;
     try {
         params = typeof action.original_params === 'string' 
@@ -152,7 +155,7 @@ function renderApprovalCard(action) {
                 <button class="btn btn-success" onclick="approveAction('${action.id}')">
                     ✓ Approve
                 </button>
-                <button class="btn btn-warning" onclick='openEditModal(${JSON.stringify(action).replace(/'/g, "\\'")})'>
+                <button class="btn btn-warning" onclick="openEditModalById('${action.id}')">
                     ✏️ Edit & Approve
                 </button>
                 <button class="btn btn-danger" onclick="rejectAction('${action.id}')">
@@ -255,3 +258,9 @@ async function executeAction(actionId) {
         }
     }
 }
+
+// Export to window
+window.renderApproval = renderApproval;
+window.approveAction = approveAction;
+window.rejectAction = rejectAction;
+window.executeAction = executeAction;

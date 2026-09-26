@@ -120,5 +120,15 @@
     <script src="/static/js/scenarios.js"></script>
     <script src="/static/js/recommendations.js"></script>
     <script src="/static/js/approval.js"></script>
+    
+    <!-- Bootstrap after all views are defined -->
+    <script>
+        if (typeof initApp === 'function') {
+            initApp();
+        } else if (typeof window.initApp === 'function') {
+            window.initApp();
+        }
+    </script>
 </body>
 </html>
+

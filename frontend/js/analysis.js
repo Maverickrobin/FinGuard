@@ -196,3 +196,7 @@ async function detectAnomalies() {
         showToast('Error: ' + e.message, 'error');
     }
 }
+
+// Export to window
+window.renderAnalysis = renderAnalysis;
+window.detectAnomalies = detectAnomalies;
