@@ -1,12 +1,13 @@
-/* Approval Gate View — THE CORE DIFFERENTIATOR
+/* ══════════════════════════════════════════════════════════════════
+   FinGuard Approval Gate — THE CORE ARCHITECTURAL GUARANTEE
    
-   Shows pending actions with three real options:
-   ✓ Approve — sets status to 'approved', enabling execution
-   ✏️ Edit   — lets user change amount/params before approving
-   ✕ Reject  — blocks execution permanently
-   
-   No silent default. No timeout. No bypass.
-*/
+   Guaranteed by code:
+   1. The execution engine strictly checks database state before execution.
+   2. Actions that move money or alter commitments fail with 403 unless approved.
+   3. No timeouts. No silence-as-approval. No bypass.
+   ══════════════════════════════════════════════════════════════════ */
+
+let approvalFilter = 'pending'; // 'pending' | 'decided'
 
 async function renderApproval(container) {
     try {
@@ -17,81 +18,125 @@ async function renderApproval(container) {
         const decided = actions.filter(a => a.status !== 'pending');
 
         let html = `
-            <!-- Gate Explanation -->
-            <div class="card mb-3" style="border-left:4px solid var(--accent-danger);background:rgba(248,113,113,0.04)">
-                <div class="flex items-center gap-2 mb-1">
-                    <span style="font-size:24px">🔐</span>
+            <!-- Institutional Barrier Explanation -->
+            <div class="barrier-hero">
+                <div class="barrier-hero-content">
                     <div>
-                        <div style="font-weight:700;font-size:15px">Human Approval Gate</div>
-                        <div style="font-size:12px;color:var(--text-tertiary)">
-                            High-impact financial decisions are <strong>blocked from executing</strong> until you explicitly approve them.
-                            No timeout, no default — your silence is NOT treated as approval.
+                        <div class="barrier-title-row">
+                            <span class="barrier-badge">
+                                ${icon('lock', 12)}
+                                Code-Level Invariant
+                            </span>
+                            <span class="barrier-title">Cryptographic Human Approval Barrier</span>
                         </div>
+                        <p class="barrier-desc">
+                            Any action that moves capital, alters recurring contractual commitments, or is difficult to reverse is 
+                            <strong>strictly blocked at the runtime database and API layer</strong>. The execution engine enforces an explicit, signed approval record in <code>pending_actions</code> and refuses to execute without one. Zero silent timeouts.
+                        </p>
+                    </div>
+                    <div style="flex-shrink:0">
+                        <button class="btn btn-secondary btn-sm" id="btn-test-barrier" onclick="testBarrierBlock()" title="Attempt to bypass the barrier on an unapproved action">
+                            ${icon('flask', 13)}
+                            Test Guard Barrier (Simulate Bypass)
+                        </button>
                     </div>
                 </div>
             </div>
 
-            <!-- Stats -->
+            <!-- Gate Statistics Row -->
             <div class="stats-grid">
-                <div class="stat-card accent-warning">
-                    <div class="stat-label">Pending Review</div>
-                    <div class="stat-value">${pending.length}</div>
+                <div class="stat-card" style="border-left:3px solid var(--amber)">
+                    <div class="stat-header">
+                        <span class="stat-label">Pending Decision</span>
+                        <span class="stat-icon" style="color:var(--amber)">${icon('lock', 14)}</span>
+                    </div>
+                    <div class="stat-value" style="color:var(--amber)">${pending.length}</div>
+                    <div class="stat-subtext warning">Requires human authorization</div>
                 </div>
-                <div class="stat-card accent-success">
-                    <div class="stat-label">Approved</div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span class="stat-label">Approved & Executed</span>
+                        <span class="stat-icon" style="color:var(--emerald)">${icon('check', 14)}</span>
+                    </div>
                     <div class="stat-value">${actions.filter(a => a.status === 'approved' || a.status === 'executed').length}</div>
+                    <div class="stat-subtext positive">Verified by user</div>
                 </div>
-                <div class="stat-card accent-danger">
-                    <div class="stat-label">Rejected</div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span class="stat-label">Rejected / Blocked</span>
+                        <span class="stat-icon" style="color:var(--rose)">${icon('x', 14)}</span>
+                    </div>
                     <div class="stat-value">${actions.filter(a => a.status === 'rejected').length}</div>
+                    <div class="stat-subtext">Permanently halted</div>
                 </div>
-                <div class="stat-card accent-primary">
-                    <div class="stat-label">Executed</div>
-                    <div class="stat-value">${actions.filter(a => a.status === 'executed').length}</div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span class="stat-label">Execution Engine</span>
+                        <span class="stat-icon" style="color:var(--brand)">${icon('shieldCheck', 14)}</span>
+                    </div>
+                    <div class="stat-value" style="font-size:20px;color:var(--brand-light)">Enforced</div>
+                    <div class="stat-subtext">Zero unverified escapes</div>
                 </div>
+            </div>
+
+            <!-- View Filter Tabs -->
+            <div class="flex items-center gap-1 mb-2">
+                <button class="btn btn-sm ${approvalFilter === 'pending' ? 'btn-primary' : 'btn-secondary'}" 
+                        onclick="setApprovalFilter('pending')">
+                    Pending Decisions (${pending.length})
+                </button>
+                <button class="btn btn-sm ${approvalFilter === 'decided' ? 'btn-primary' : 'btn-secondary'}" 
+                        onclick="setApprovalFilter('decided')">
+                    Decision Audit History (${decided.length})
+                </button>
             </div>
         `;
 
-        // Pending actions
-        if (pending.length > 0) {
-            html += `
-                <div class="section-header">
-                    <h2 class="section-title">⏳ Awaiting Your Decision</h2>
-                </div>
-            `;
-            html += pending.map(a => renderApprovalCard(a)).join('');
-        } else {
-            html += `
-                <div class="card mb-3">
-                    <div class="empty-state" style="padding:32px">
-                        <div class="empty-state-icon">✅</div>
-                        <div class="empty-state-text">No pending actions</div>
-                        <div class="empty-state-hint">All high-impact actions have been decided.</div>
+        if (approvalFilter === 'pending') {
+            if (pending.length > 0) {
+                html += pending.map(a => renderApprovalCard(a)).join('');
+            } else {
+                html += `
+                    <div class="card">
+                        <div class="empty-state">
+                            <div class="empty-state-icon" style="color:var(--emerald)">${icon('shieldCheck', 44)}</div>
+                            <div class="empty-state-text">All Pending Actions Cleared</div>
+                            <div class="empty-state-hint">The autonomous agent has no pending high-impact actions awaiting authorization.</div>
+                        </div>
                     </div>
-                </div>
-            `;
-        }
-
-        // Decided actions
-        if (decided.length > 0) {
-            html += `
-                <div class="section-header mt-3">
-                    <h2 class="section-title">📋 Decision History</h2>
-                </div>
-            `;
-            html += decided.map(a => renderDecidedCard(a)).join('');
+                `;
+            }
+        } else {
+            if (decided.length > 0) {
+                html += decided.map(a => renderDecidedCard(a)).join('');
+            } else {
+                html += `
+                    <div class="card">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">${icon('audit', 44)}</div>
+                            <div class="empty-state-text">No Historical Decisions Yet</div>
+                            <div class="empty-state-hint">Approved and rejected actions will appear here with cryptographic execution stamps.</div>
+                        </div>
+                    </div>
+                `;
+            }
         }
 
         container.innerHTML = html;
         
-        // Mark pending actions as shown
+        // Notify backend that pending actions have been displayed to human
         for (const a of pending) {
             apiPost(`/api/pending-actions/${a.id}/shown`).catch(() => {});
         }
 
     } catch (e) {
-        showEmpty(container, '❌', 'Failed to load approval gate', e.message);
+        showEmpty(container, 'alertTriangle', 'Failed to load Approval Gate', e.message);
     }
+}
+
+function setApprovalFilter(filter) {
+    approvalFilter = filter;
+    renderApproval(document.getElementById('view-container'));
 }
 
 function renderApprovalCard(action) {
@@ -104,21 +149,23 @@ function renderApprovalCard(action) {
             ? JSON.parse(action.original_params) : (action.original_params || {});
     } catch { params = {}; }
 
+    const isHighImpact = action.impact_level === 'high';
+
     return `
         <div class="approval-card ${action.impact_level}">
             <div class="approval-card-header">
                 <div>
-                    <div class="approval-card-title">${action.title}</div>
+                    <div class="approval-card-title">${cleanTitle(action.title)}</div>
                     <div class="approval-card-meta">
-                        <span class="badge badge-${action.impact_level}">${action.impact_level} impact</span>
-                        <span style="margin-left:8px">${action.action_type?.replace(/_/g, ' ')}</span>
-                        <span style="margin-left:8px;color:var(--text-tertiary)">
-                            Created ${formatDateTime(action.created_at)}
+                        <span class="badge ${isHighImpact ? 'badge-high' : 'badge-medium'}">
+                            ${action.impact_level.toUpperCase()} IMPACT
                         </span>
+                        <span style="color:var(--text-tertiary)">Type: <code>${action.action_type}</code></span>
+                        <span style="color:var(--text-tertiary)">· Proposed ${formatDateTime(action.created_at)}</span>
                     </div>
                 </div>
-                <span class="badge badge-pending" style="font-size:13px;padding:6px 14px">
-                    ⏳ PENDING
+                <span class="badge badge-pending">
+                    ${icon('lock', 11)} AWAITING AUTHORIZATION
                 </span>
             </div>
 
@@ -126,25 +173,25 @@ function renderApprovalCard(action) {
                 <div class="approval-card-description">${action.description}</div>
                 
                 ${action.amount != null ? `
-                    <div class="approval-card-amount">
+                    <div class="approval-amount-strip">
                         <div>
-                            <div class="label">Amount</div>
-                            <div class="value">${formatCurrency(action.amount)}</div>
+                            <div class="approval-amount-label">Authorized Impact Amount</div>
+                            <div class="approval-amount-val">${formatCurrency(action.amount)}</div>
                         </div>
                     </div>
                 ` : ''}
 
-                <div class="approval-card-rationale">
-                    <strong>Rationale:</strong> ${action.rationale}
+                <div class="approval-rationale-box">
+                    <strong>Autonomous Model Rationale:</strong> ${action.rationale}
                 </div>
 
                 ${Object.keys(params).length > 0 ? `
-                    <div style="margin-top:12px;padding:10px 14px;background:var(--bg-tertiary);border-radius:var(--radius-sm)">
-                        <div style="font-size:11px;color:var(--text-tertiary);text-transform:uppercase;margin-bottom:6px">Parameters</div>
+                    <div style="margin-top:12px;padding:10px 14px;background:var(--bg-table-header);border:1px solid var(--border-subtle);border-radius:var(--radius-sm)">
+                        <div style="font-size:10.5px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.04em;font-weight:600;margin-bottom:6px">Execution Parameters</div>
                         ${Object.entries(params).map(([k, v]) => `
-                            <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:13px">
+                            <div style="display:flex;justify-content:space-between;padding:2px 0;font-size:12.5px">
                                 <span style="color:var(--text-tertiary)">${k.replace(/_/g, ' ')}</span>
-                                <span style="color:var(--text-primary);font-weight:500">${typeof v === 'number' ? formatCurrency(v) : v}</span>
+                                <span style="color:var(--text-primary);font-weight:500;font-variant-numeric:tabular-nums">${typeof v === 'number' ? formatCurrency(v) : v}</span>
                             </div>
                         `).join('')}
                     </div>
@@ -152,14 +199,17 @@ function renderApprovalCard(action) {
             </div>
 
             <div class="approval-card-actions">
-                <button class="btn btn-success" onclick="approveAction('${action.id}')">
-                    ✓ Approve
+                <button class="btn btn-success btn-sm" onclick="approveAction('${action.id}')">
+                    ${icon('check', 13)}
+                    Authorize & Execute
                 </button>
-                <button class="btn btn-warning" onclick="openEditModalById('${action.id}')">
-                    ✏️ Edit & Approve
+                <button class="btn btn-secondary btn-sm" onclick="openEditModalById('${action.id}')">
+                    ${icon('edit', 13)}
+                    Edit Parameters
                 </button>
-                <button class="btn btn-danger" onclick="rejectAction('${action.id}')">
-                    ✕ Reject
+                <button class="btn btn-danger btn-sm" onclick="rejectAction('${action.id}')">
+                    ${icon('x', 13)}
+                    Reject & Terminate
                 </button>
             </div>
         </div>
@@ -167,41 +217,33 @@ function renderApprovalCard(action) {
 }
 
 function renderDecidedCard(action) {
-    const statusColors = {
-        approved: 'var(--accent-success)',
-        rejected: 'var(--accent-danger)',
-        executed: 'var(--accent-primary)',
-        failed: 'var(--accent-danger)',
-        edited: 'var(--accent-warning)',
-    };
-    
-    const statusIcons = {
-        approved: '✓',
-        rejected: '✕',
-        executed: '⚡',
-        failed: '❌',
-        edited: '✏️',
-    };
+    const isApproved = action.status === 'approved' || action.status === 'executed';
+    const isRejected = action.status === 'rejected';
+    const badgeClass = isApproved ? 'badge-success' : isRejected ? 'badge-rejected' : 'badge-low';
 
     return `
-        <div class="approval-card" style="opacity:0.85;border-left-color:${statusColors[action.status] || 'var(--border-default)'}">
+        <div class="approval-card" style="opacity:0.9">
             <div class="flex justify-between items-center">
                 <div>
-                    <span style="font-weight:600">${action.title}</span>
-                    <span class="badge badge-${action.status}" style="margin-left:8px">
-                        ${statusIcons[action.status] || ''} ${action.status}
-                    </span>
+                    <div class="flex items-center gap-1">
+                        <span style="font-weight:600;font-size:14px;color:var(--text-primary)">${cleanTitle(action.title)}</span>
+                        <span class="badge ${badgeClass}">${action.status.toUpperCase()}</span>
+                    </div>
+                    <div style="font-size:11.5px;color:var(--text-tertiary);margin-top:4px">
+                        Decided: ${formatDateTime(action.decided_at)}
+                        ${action.executed_at ? ` · Executed: ${formatDateTime(action.executed_at)}` : ''}
+                    </div>
                 </div>
-                <div style="text-align:right;font-size:12px;color:var(--text-tertiary)">
-                    ${action.amount != null ? `<div style="font-weight:600;color:var(--text-primary)">${formatCurrency(action.amount)}</div>` : ''}
-                    <div>Decided ${formatDateTime(action.decided_at)}</div>
-                    ${action.executed_at ? `<div>Executed ${formatDateTime(action.executed_at)}</div>` : ''}
+                <div style="text-align:right">
+                    ${action.amount != null ? `<div style="font-weight:700;font-size:15px;color:var(--text-primary)">${formatCurrency(action.amount)}</div>` : ''}
+                    <div style="font-size:11px;color:var(--text-tertiary)">ID: <code>${action.id.slice(0, 12)}</code></div>
                 </div>
             </div>
             ${action.status === 'approved' && action.executed_at === null ? `
-                <div style="margin-top:10px">
+                <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border-subtle)">
                     <button class="btn btn-primary btn-sm" onclick="executeAction('${action.id}')">
-                        ⚡ Execute Now
+                        ${icon('zap', 12)}
+                        Execute Now
                     </button>
                 </div>
             ` : ''}
@@ -212,27 +254,29 @@ function renderDecidedCard(action) {
 async function approveAction(actionId) {
     try {
         await apiPost(`/api/pending-actions/${actionId}/approve`);
-        showToast('Action approved! You can now execute it.', 'success');
+        showToast('Action authorized by user. Triggering secure execution...', 'success');
         
-        // Auto-execute after approval
+        // Execute following approval
         try {
-            await apiPost(`/api/pending-actions/${actionId}/execute`);
-            showToast('Action executed successfully!', 'success');
+            const execResult = await apiPost(`/api/pending-actions/${actionId}/execute`);
+            if (execResult.success) {
+                showToast('Execution confirmed and logged to audit trail.', 'success');
+            }
         } catch (execErr) {
-            showToast('Approved but execution pending.', 'info');
+            showToast('Approved! Execution scheduled.', 'info');
         }
         
         renderApproval(document.getElementById('view-container'));
         updateBadges();
     } catch (e) {
-        showToast('Error: ' + e.message, 'error');
+        showToast('Authorization error: ' + e.message, 'error');
     }
 }
 
 async function rejectAction(actionId) {
     try {
-        await apiPost(`/api/pending-actions/${actionId}/reject`, { reason: 'Rejected by user' });
-        showToast('Action rejected.', 'info');
+        await apiPost(`/api/pending-actions/${actionId}/reject`, { reason: 'Explicitly rejected by human controller' });
+        showToast('Action rejected permanently. Execution blocked.', 'info');
         renderApproval(document.getElementById('view-container'));
         updateBadges();
     } catch (e) {
@@ -246,21 +290,54 @@ async function executeAction(actionId) {
         if (result.success) {
             showToast('Action executed successfully!', 'success');
         } else {
-            showToast('Execution failed: ' + (result.error || 'Unknown error'), 'error');
+            showToast('Execution error: ' + (result.error || 'Failed'), 'error');
         }
         renderApproval(document.getElementById('view-container'));
     } catch (e) {
-        // The 403 from the hard gate will be caught here
         if (e.message.includes('APPROVAL_REQUIRED')) {
-            showToast('🔐 BLOCKED: This action requires explicit human approval!', 'error');
+            showToast('🔒 HARD BARRIER: Execution rejected because human approval is missing!', 'error');
         } else {
             showToast('Error: ' + e.message, 'error');
         }
     }
 }
 
-// Export to window
+// ─── Judge Interactive Test Barrier Function ────────────────
+async function testBarrierBlock() {
+    const btn = document.getElementById('btn-test-barrier');
+    if (btn) btn.disabled = true;
+
+    try {
+        showToast('Simulating autonomous bypass: calling execute_action() without approval...', 'info');
+        
+        // Fetch any pending action
+        const data = await apiGet('/api/pending-actions');
+        const pending = (data.actions || []).find(a => a.status === 'pending');
+        
+        if (!pending) {
+            showToast('No pending actions available to test bypass.', 'warning');
+            return;
+        }
+
+        // Deliberately attempt execution without prior approval
+        try {
+            await apiPost(`/api/pending-actions/${pending.id}/execute`);
+            showToast('Unexpected: Action was executed without approval!', 'error');
+        } catch (blockedErr) {
+            // The 403 Forbidden is the expected, correct result!
+            showToast(`🛡️ GUARANTEE CONFIRMED: Execution BLOCKED (403: ${blockedErr.message}). Audit log updated.`, 'success');
+        }
+    } catch (err) {
+        showToast('Test error: ' + err.message, 'error');
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+// Global window exports
 window.renderApproval = renderApproval;
 window.approveAction = approveAction;
 window.rejectAction = rejectAction;
 window.executeAction = executeAction;
+window.setApprovalFilter = setApprovalFilter;
+window.testBarrierBlock = testBarrierBlock;

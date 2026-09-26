@@ -1,4 +1,9 @@
-/* Analysis View — Anomalies + Cash Flow Forecast */
+/* ══════════════════════════════════════════════════════════════════
+   FinGuard Analysis View — Anomalies & 90-Day Cash Flow Forecast
+   ══════════════════════════════════════════════════════════════════ */
+
+let anomalyFilter = 'all'; // 'all' | 'outlier' | 'recurring'
+
 async function renderAnalysis(container) {
     try {
         const [anomalyData, forecastData] = await Promise.all([
@@ -9,103 +14,177 @@ async function renderAnalysis(container) {
         const anomalies = anomalyData.anomalies || [];
         const forecast = forecastData;
 
+        const hasZeroCrossing = !!forecast.zero_crossing_date;
+        const outliers = anomalies.filter(a => a.anomaly_type === 'category_outlier');
+        const recurring = anomalies.filter(a => a.anomaly_type === 'recurring_price_change');
+
+        const displayAnomalies = anomalyFilter === 'outlier' ? outliers 
+            : anomalyFilter === 'recurring' ? recurring 
+            : anomalies;
+
         let html = `
-            <!-- Forecast Summary Stats -->
+            <!-- Top Summary Statistics -->
             <div class="stats-grid">
-                <div class="stat-card ${forecast.zero_crossing_date ? 'accent-danger' : 'accent-success'}">
-                    <div class="stat-label">Cash Flow Status</div>
-                    <div class="stat-value" style="font-size:20px">
-                        ${forecast.zero_crossing_date 
-                            ? `⚠️ Shortfall on ${formatDate(forecast.zero_crossing_date)}`
-                            : '✅ Healthy'}
+                <div class="stat-card" style="border-left:3px solid ${hasZeroCrossing ? 'var(--rose)' : 'var(--emerald)'}">
+                    <div class="stat-header">
+                        <span class="stat-label">90-Day Solvency Outlook</span>
+                        <span class="stat-icon">${icon(hasZeroCrossing ? 'alertTriangle' : 'shieldCheck', 15)}</span>
+                    </div>
+                    <div class="stat-value" style="font-size:20px;color:${hasZeroCrossing ? 'var(--rose)' : 'var(--emerald)'}">
+                        ${hasZeroCrossing ? `Deficit on ${formatDate(forecast.zero_crossing_date)}` : 'Solvent & Stable'}
+                    </div>
+                    <div class="stat-subtext ${hasZeroCrossing ? 'negative' : 'positive'}">
+                        ${hasZeroCrossing ? 'Liquidity breach predicted' : 'No zero-crossing risk detected'}
                     </div>
                 </div>
-                <div class="stat-card accent-primary">
-                    <div class="stat-label">Projected Balance (90 days)</div>
+
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span class="stat-label">Projected Balance (Day 90)</span>
+                        <span class="stat-icon">${icon('trendingUp', 15)}</span>
+                    </div>
                     <div class="stat-value">${formatCurrency(forecast.final_balance)}</div>
+                    <div class="stat-subtext">Estimated net position</div>
                 </div>
-                <div class="stat-card accent-info">
-                    <div class="stat-label">Daily Discretionary</div>
+
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span class="stat-label">Daily Discretionary Cap</span>
+                        <span class="stat-icon">${icon('receipt', 15)}</span>
+                    </div>
                     <div class="stat-value">${formatCurrency(forecast.daily_discretionary_estimate)}</div>
-                    <div class="stat-change">estimated average/day</div>
+                    <div class="stat-subtext">Safe daily spending velocity</div>
                 </div>
-                <div class="stat-card accent-warning">
-                    <div class="stat-label">Anomalies Detected</div>
-                    <div class="stat-value">${anomalies.length}</div>
+
+                <div class="stat-card" style="border-left:3px solid var(--amber)">
+                    <div class="stat-header">
+                        <span class="stat-label">Detected Anomalies</span>
+                        <span class="stat-icon" style="color:var(--amber)">${icon('alertTriangle', 15)}</span>
+                    </div>
+                    <div class="stat-value" style="color:var(--amber)">${anomalies.length}</div>
+                    <div class="stat-subtext warning">${recurring.length} recurring subscription hikes</div>
                 </div>
             </div>
 
-            <!-- Forecast Chart -->
+            <!-- 90-Day Balance Trajectory Chart -->
             <div class="card mb-3">
                 <div class="card-header">
                     <div>
-                        <div class="card-title">90-Day Balance Forecast</div>
-                        <div class="card-subtitle">Based on recurring patterns + discretionary trends</div>
+                        <div class="card-title">90-Day Liquidity & Cash Flow Trajectory</div>
+                        <div class="card-subtitle">Synthesized from recurring fixed obligations + mean discretionary run-rate</div>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <span class="badge badge-low">Deterministic Model</span>
                     </div>
                 </div>
-                <div class="chart-container" style="height:320px">
+                <div class="chart-container" style="height:280px">
                     <canvas id="chart-forecast"></canvas>
                 </div>
             </div>
 
-            <!-- Anomalies -->
+            <!-- Detected Anomalies Section -->
             <div class="section-header">
-                <h2 class="section-title">Detected Anomalies</h2>
-                <button class="btn btn-secondary btn-sm" onclick="detectAnomalies()">🔍 Re-detect</button>
+                <div>
+                    <h2 class="section-title">Statistical & Contractual Anomalies</h2>
+                    <div class="card-subtitle">Filtered by rolling per-category 2.0σ threshold and same-merchant subscription price tracking.</div>
+                </div>
+                <div class="flex items-center gap-1">
+                    <button class="btn btn-secondary btn-sm" onclick="reRunAnomalyScan()">
+                        ${icon('refresh', 13)}
+                        Re-evaluate Models
+                    </button>
+                </div>
             </div>
-            
-            ${anomalies.length === 0 
-                ? '<div class="card"><div class="empty-state"><div class="empty-state-icon">✅</div><div class="empty-state-text">No anomalies detected</div><div class="empty-state-hint">Run the analysis pipeline to detect anomalies.</div></div></div>'
-                : anomalies.map(a => `
+
+            <!-- Anomaly Filter Pills -->
+            <div class="flex items-center gap-1 mb-2">
+                <button class="btn btn-sm ${anomalyFilter === 'all' ? 'btn-primary' : 'btn-secondary'}" onclick="setAnomalyFilter('all')">
+                    All Detected (${anomalies.length})
+                </button>
+                <button class="btn btn-sm ${anomalyFilter === 'outlier' ? 'btn-primary' : 'btn-secondary'}" onclick="setAnomalyFilter('outlier')">
+                    Spending Outliers (${outliers.length})
+                </button>
+                <button class="btn btn-sm ${anomalyFilter === 'recurring' ? 'btn-primary' : 'btn-secondary'}" onclick="setAnomalyFilter('recurring')">
+                    Recurring Price Hikes (${recurring.length})
+                </button>
+            </div>
+
+            <!-- Anomaly Cards List -->
+            ${displayAnomalies.length === 0 ? `
+                <div class="card">
+                    <div class="empty-state">
+                        <div class="empty-state-icon" style="color:var(--emerald)">${icon('check', 44)}</div>
+                        <div class="empty-state-text">No anomalies in this category</div>
+                    </div>
+                </div>
+            ` : displayAnomalies.map(a => {
+                const isRecurring = a.anomaly_type === 'recurring_price_change';
+                const isHigh = a.severity === 'high';
+                return `
                     <div class="anomaly-card">
                         <div class="anomaly-icon ${a.severity}">
-                            ${a.anomaly_type === 'recurring_price_change' ? '💰' : '📊'}
+                            ${icon(isRecurring ? 'refresh' : 'alertTriangle', 18)}
                         </div>
                         <div class="anomaly-details">
                             <div class="anomaly-title">
-                                ${a.anomaly_type === 'recurring_price_change' ? 'Price Change' : 'Spending Outlier'}
-                                <span class="badge badge-${a.severity}" style="margin-left:8px">${a.severity}</span>
+                                <span>${isRecurring ? 'Recurring Subscription Price Hike' : 'Per-Category Statistical Outlier'}</span>
+                                <span class="badge ${isHigh ? 'badge-high' : 'badge-medium'}">
+                                    ${a.severity.toUpperCase()}
+                                </span>
+                                ${a.category ? `<span class="badge badge-low">${a.category}</span>` : ''}
                             </div>
                             <div class="anomaly-desc">${a.description}</div>
                         </div>
-                        <div style="text-align:right;flex-shrink:0">
-                            <div style="font-size:11px;color:var(--text-tertiary)">Deviation</div>
-                            <div style="font-size:18px;font-weight:700;color:${a.severity === 'high' ? 'var(--accent-danger)' : 'var(--accent-warning)'}">
-                                ${a.deviation_score}${a.anomaly_type === 'category_outlier' ? 'σ' : '%'}
+                        <div class="anomaly-stat-pill">
+                            <div class="anomaly-stat-label">Deviation</div>
+                            <div class="anomaly-stat-value" style="color:${isHigh ? 'var(--rose-light)' : 'var(--amber-light)'}">
+                                ${isRecurring ? '+' + a.deviation_score + '%' : '+' + a.deviation_score + 'σ'}
                             </div>
                         </div>
                     </div>
-                `).join('')
-            }
-            
-            <!-- Monthly Forecast Table -->
+                `;
+            }).join('')}
+
+            <!-- Monthly Projection Breakdown Table -->
             <div class="card mt-3">
                 <div class="card-header">
-                    <div class="card-title">Monthly Projection</div>
+                    <div>
+                        <div class="card-title">Monthly Trajectory Breakdown</div>
+                        <div class="card-subtitle">Projected net cash flows over 90-day horizon</div>
+                    </div>
                 </div>
                 <div class="table-container">
                     <table>
                         <thead>
                             <tr>
-                                <th>Month</th>
-                                <th>Income</th>
-                                <th>Expense</th>
-                                <th>Net</th>
-                                <th>Min Balance</th>
-                                <th>End Balance</th>
+                                <th>Forecast Period</th>
+                                <th style="text-align:right">Estimated Inflow</th>
+                                <th style="text-align:right">Estimated Outflow</th>
+                                <th style="text-align:right">Net Delta</th>
+                                <th style="text-align:right">Projected Min Balance</th>
+                                <th style="text-align:right">Projected End Balance</th>
                             </tr>
                         </thead>
                         <tbody>
-                            ${(forecast.monthly || []).map(m => `
-                                <tr>
-                                    <td>${m.month}</td>
-                                    <td class="amount-credit">${formatCurrency(m.income)}</td>
-                                    <td class="amount-debit">${formatCurrency(m.expense)}</td>
-                                    <td class="${m.net >= 0 ? 'amount-credit' : 'amount-debit'}">${formatCurrency(m.net)}</td>
-                                    <td class="${m.min_balance < 0 ? 'amount-debit' : ''}">${formatCurrency(m.min_balance)}</td>
-                                    <td class="${m.end_balance < 0 ? 'amount-debit' : ''}">${formatCurrency(m.end_balance)}</td>
-                                </tr>
-                            `).join('')}
+                            ${(forecast.monthly || []).map(m => {
+                                const net = m.income - m.expense;
+                                return `
+                                    <tr>
+                                        <td style="font-weight:600;color:var(--text-primary)">${m.month}</td>
+                                        <td style="text-align:right" class="amount-credit">+${formatCurrency(m.income)}</td>
+                                        <td style="text-align:right" class="amount-debit">-${formatCurrency(m.expense)}</td>
+                                        <td style="text-align:right;color:${net >= 0 ? 'var(--emerald-light)' : 'var(--rose-light)'};font-weight:600">
+                                            ${net >= 0 ? '+' : ''}${formatCurrency(net)}
+                                        </td>
+                                        <td style="text-align:right;font-size:12px;color:var(--text-tertiary)">
+                                            ${formatCurrency(m.min_balance)}
+                                        </td>
+                                        <td style="text-align:right;font-weight:600;color:var(--text-primary)">
+                                            ${formatCurrency(m.end_balance)}
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
                         </tbody>
                     </table>
                 </div>
@@ -115,23 +194,42 @@ async function renderAnalysis(container) {
         container.innerHTML = html;
 
         // Render forecast chart
-        renderForecastChart(forecast);
+        renderForecastChart(forecast.daily || []);
 
     } catch (e) {
-        showEmpty(container, '❌', 'Failed to load analysis', e.message);
+        showEmpty(container, 'alertTriangle', 'Failed to load analysis', e.message);
     }
 }
 
-function renderForecastChart(forecast) {
-    const daily = forecast.daily || [];
-    
-    // Sample every 3rd day for readability
-    const sampled = daily.filter((_, i) => i % 3 === 0 || i === daily.length - 1);
-    
+function setAnomalyFilter(filter) {
+    anomalyFilter = filter;
+    renderAnalysis(document.getElementById('view-container'));
+}
+
+async function reRunAnomalyScan() {
+    try {
+        showToast('Running statistical outlier and subscription diff models...', 'info');
+        await apiPost('/api/anomalies/detect');
+        showToast('Anomaly scan complete. View updated.', 'success');
+        renderAnalysis(document.getElementById('view-container'));
+        updateBadges();
+    } catch (e) {
+        showToast('Error scanning: ' + e.message, 'error');
+    }
+}
+
+function renderForecastChart(dailyData) {
+    if (!dailyData || dailyData.length === 0) return;
+
+    // Sample data points to keep chart clean (every 3 days)
+    const sampled = dailyData.filter((_, i) => i % 2 === 0 || i === dailyData.length - 1);
+
     const labels = sampled.map(d => {
-        const date = new Date(d.date);
-        return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+        const parts = d.date.split('-');
+        return `${parts[2]}/${parts[1]}`;
     });
+
+    const balances = sampled.map(d => d.balance);
 
     getOrCreateChart('chart-forecast', {
         type: 'line',
@@ -139,42 +237,37 @@ function renderForecastChart(forecast) {
             labels,
             datasets: [
                 {
-                    label: 'Projected Balance',
-                    data: sampled.map(d => d.balance),
-                    borderColor: CHART_COLORS.primary,
-                    backgroundColor: 'rgba(99, 102, 241, 0.08)',
+                    label: 'Projected Net Liquidity',
+                    data: balances,
+                    borderColor: '#4F6BFF',
+                    backgroundColor: 'rgba(79, 107, 255, 0.08)',
+                    borderWidth: 2,
                     fill: true,
                     tension: 0.3,
-                    pointRadius: 2,
-                    pointHoverRadius: 6,
-                    borderWidth: 2,
-                },
-                {
-                    label: 'Zero Line',
-                    data: sampled.map(() => 0),
-                    borderColor: CHART_COLORS.danger,
-                    borderDash: [6, 4],
-                    borderWidth: 1,
                     pointRadius: 0,
-                    fill: false,
+                    pointHoverRadius: 5,
+                    pointHoverBackgroundColor: '#4F6BFF',
                 },
             ],
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            interaction: { intersect: false, mode: 'index' },
+            interaction: { mode: 'index', intersect: false },
             plugins: {
-                legend: { position: 'top' },
+                legend: { display: false },
                 tooltip: {
                     callbacks: {
-                        label: ctx => `${ctx.dataset.label}: ${formatCurrency(ctx.raw)}`,
+                        label: ctx => ` Projected Balance: ${formatCurrency(ctx.raw)}`,
                     },
                 },
             },
             scales: {
                 y: {
-                    ticks: { callback: v => formatCurrency(v) },
+                    ticks: {
+                        callback: v => formatCurrency(v),
+                        maxTicksLimit: 5,
+                    },
                     grid: { color: CHART_COLORS.grid },
                 },
                 x: {
@@ -186,17 +279,7 @@ function renderForecastChart(forecast) {
     });
 }
 
-async function detectAnomalies() {
-    try {
-        showToast('Detecting anomalies...', 'info');
-        await apiPost('/api/anomalies/detect');
-        showToast('Anomaly detection complete!', 'success');
-        renderAnalysis(document.getElementById('view-container'));
-    } catch (e) {
-        showToast('Error: ' + e.message, 'error');
-    }
-}
-
-// Export to window
+// Exports
 window.renderAnalysis = renderAnalysis;
-window.detectAnomalies = detectAnomalies;
+window.setAnomalyFilter = setAnomalyFilter;
+window.reRunAnomalyScan = reRunAnomalyScan;

@@ -1,16 +1,52 @@
-/* ═══════════════════════════════════════════════════════════
-   FinGuard App — Main controller, router, utilities
-   ═══════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════════
+   FinGuard App — Main Controller, Router, Utilities & Icon System
+   ══════════════════════════════════════════════════════════════════ */
 
 const API = '';  // Same origin
 
-// ─── Utility functions ──────────────────────────────────────
+// ─── Precision Vector Icon Library (Zero network dependency) ─────
+const ICONS = {
+    shield: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
+    shieldCheck: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>',
+    shieldAlert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>',
+    lock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+    dashboard: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>',
+    receipt: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>',
+    activity: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m22 7-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/></svg>',
+    sliders: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="21" y2="21"/><line x1="4" x2="20" y1="3" y2="3"/><line x1="4" x2="20" y1="12" y2="12"/><circle cx="8" cy="12" r="2"/><circle cx="16" cy="3" r="2"/><circle cx="12" cy="21" r="2"/></svg>',
+    sparkles: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>',
+    audit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M15 2H9a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1Z"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>',
+    zap: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+    check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+    x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg>',
+    edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
+    alertTriangle: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>',
+    refresh: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>',
+    search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/></svg>',
+    arrowUpRight: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" x2="17" y1="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>',
+    arrowDownRight: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" x2="17" y1="7" y2="17"/><polyline points="17 7 17 17 7 17"/></svg>',
+    chevronRight: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>',
+    info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="16" y2="12"/><line x1="12" x2="12.01" y1="8" y2="8"/></svg>',
+    flask: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v7.31L4.2 18.06A2 2 0 0 0 5.86 21h12.28a2 2 0 0 0 1.66-2.94L14 9.31V2Z"/><path d="M8.5 2h7"/><path d="M7 16h10"/></svg>',
+    tag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/><circle cx="7" cy="7" r=".5" fill="currentColor"/></svg>',
+    trendingUp: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>',
+    trendingDown: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg>',
+};
+
+function icon(name, size = 16, className = '') {
+    const raw = ICONS[name] || ICONS.info;
+    const styleAttr = `width="${size}" height="${size}"`;
+    const classAttr = className ? `class="${className}"` : '';
+    return raw.replace('<svg ', `<svg ${styleAttr} ${classAttr} `);
+}
+
+// ─── Formatters ─────────────────────────────────────────────
 function formatCurrency(amount) {
     if (amount == null || isNaN(amount)) return '₹0';
     const abs = Math.abs(amount);
     if (abs >= 10000000) return '₹' + (amount / 10000000).toFixed(2) + ' Cr';
     if (abs >= 100000) return '₹' + (amount / 100000).toFixed(2) + ' L';
-    return '₹' + amount.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+    return '₹' + Math.round(amount).toLocaleString('en-IN');
 }
 
 function formatDate(dateStr) {
@@ -22,80 +58,132 @@ function formatDate(dateStr) {
 function formatDateTime(dateStr) {
     if (!dateStr) return '';
     const d = new Date(dateStr);
-    return d.toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
+function cleanTitle(str) {
+    return str ? str.replace(/^[\p{Extended_Pictographic}\u200d\uFE0F\s]+/u, '').trim() : '';
+}
+
+function getApiBase() {
+    if (typeof window !== 'undefined' && window.API) return window.API;
+    return '';
+}
+
+// ─── API Fetch Helpers ──────────────────────────────────────
 async function apiGet(path) {
-    const res = await fetch(API + path);
-    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    const res = await fetch(getApiBase() + path);
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: res.statusText }));
+        throw new Error(typeof err.detail === 'string' ? err.detail : `HTTP ${res.status}`);
+    }
     return res.json();
 }
 
 async function apiPost(path, body = {}) {
-    const res = await fetch(API + path, {
+    const res = await fetch(getApiBase() + path, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
     });
     if (!res.ok) {
         const err = await res.json().catch(() => ({ detail: res.statusText }));
-        throw new Error(typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail));
+        throw new Error(typeof err.detail === 'string' ? err.detail : `HTTP ${res.status}`);
     }
     return res.json();
 }
 
+// ─── Feedback & Notifications ───────────────────────────────
 function showToast(message, type = 'info') {
     const container = document.getElementById('toast-container');
+    if (!container) return;
+    
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    toast.textContent = message;
+    
+    const iconName = type === 'success' ? 'check' : type === 'error' ? 'alertTriangle' : type === 'warning' ? 'alertTriangle' : 'info';
+    toast.innerHTML = `
+        <span style="flex-shrink:0">${icon(iconName, 15)}</span>
+        <span style="flex:1">${message}</span>
+    `;
+    
     container.appendChild(toast);
+    
     setTimeout(() => {
         toast.style.opacity = '0';
-        toast.style.transform = 'translateY(20px)';
-        toast.style.transition = 'all 0.3s ease';
-        setTimeout(() => toast.remove(), 300);
-    }, 3500);
+        toast.style.transform = 'translateY(12px) scale(0.96)';
+        toast.style.transition = 'all 0.2s ease';
+        setTimeout(() => {
+            if (typeof toast.remove === 'function') toast.remove();
+            else if (toast.parentNode) toast.parentNode.removeChild(toast);
+        }, 220);
+    }, 4000);
 }
 
 function showLoading(container) {
-    container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+    container.innerHTML = `
+        <div class="loading">
+            <div class="spinner"></div>
+        </div>
+    `;
 }
 
-function showEmpty(container, icon, text, hint = '') {
+function showSkeleton(container) {
+    container.innerHTML = `
+        <div class="stats-grid">
+            <div class="stat-card"><div class="skeleton" style="height:14px;width:40%;margin-bottom:12px"></div><div class="skeleton" style="height:32px;width:70%"></div></div>
+            <div class="stat-card"><div class="skeleton" style="height:14px;width:40%;margin-bottom:12px"></div><div class="skeleton" style="height:32px;width:70%"></div></div>
+            <div class="stat-card"><div class="skeleton" style="height:14px;width:40%;margin-bottom:12px"></div><div class="skeleton" style="height:32px;width:70%"></div></div>
+            <div class="stat-card"><div class="skeleton" style="height:14px;width:40%;margin-bottom:12px"></div><div class="skeleton" style="height:32px;width:70%"></div></div>
+        </div>
+        <div class="charts-grid">
+            <div class="card"><div class="skeleton" style="height:240px"></div></div>
+            <div class="card"><div class="skeleton" style="height:240px"></div></div>
+        </div>
+    `;
+}
+
+function showEmpty(container, iconName, text, hint = '') {
     container.innerHTML = `
         <div class="empty-state">
-            <div class="empty-state-icon">${icon}</div>
+            <div class="empty-state-icon">${icon(iconName, 44)}</div>
             <div class="empty-state-text">${text}</div>
             ${hint ? `<div class="empty-state-hint">${hint}</div>` : ''}
         </div>
     `;
 }
 
-// ─── Chart theme ────────────────────────────────────────────
+// ─── Chart Theme (Institutional Precision) ─────────────────
 const CHART_COLORS = {
-    primary: '#6366f1',
-    primaryLight: '#818cf8',
-    secondary: '#22d3ee',
-    success: '#34d399',
-    warning: '#fbbf24',
-    danger: '#f87171',
-    info: '#60a5fa',
-    grid: 'rgba(148, 163, 184, 0.08)',
-    text: '#94a3b8',
+    brand: '#4F6BFF',
+    brandLight: '#7086FF',
+    brandSubtle: 'rgba(79, 107, 255, 0.15)',
+    success: '#10B981',
+    successSubtle: 'rgba(16, 185, 129, 0.15)',
+    danger: '#F43F5E',
+    dangerSubtle: 'rgba(244, 63, 94, 0.15)',
+    warning: '#F59E0B',
+    info: '#0EA5E9',
+    grid: 'rgba(255, 255, 255, 0.05)',
+    text: '#94A3B8',
 };
 
-if (typeof Chart !== 'undefined') {
+if (typeof Chart !== 'undefined' && Chart.defaults) {
     Chart.defaults.color = CHART_COLORS.text;
     Chart.defaults.borderColor = CHART_COLORS.grid;
-    Chart.defaults.font.family = "'Inter', sans-serif";
-    Chart.defaults.font.size = 12;
-    Chart.defaults.plugins.legend.labels.usePointStyle = true;
-    Chart.defaults.plugins.legend.labels.pointStyleWidth = 8;
-    Chart.defaults.animation.duration = 600;
+    Chart.defaults.font = Chart.defaults.font || {};
+    Chart.defaults.font.family = "'Inter', -apple-system, sans-serif";
+    Chart.defaults.font.size = 11;
+    if (Chart.defaults.plugins && Chart.defaults.plugins.legend && Chart.defaults.plugins.legend.labels) {
+        Chart.defaults.plugins.legend.labels.usePointStyle = true;
+        Chart.defaults.plugins.legend.labels.pointStyleWidth = 7;
+        Chart.defaults.plugins.legend.labels.boxHeight = 7;
+    }
+    if (Chart.defaults.animation) {
+        Chart.defaults.animation.duration = 400;
+    }
 }
 
-// Destroy chart by canvas ID if it exists
 const chartInstances = {};
 function getOrCreateChart(canvasId, config) {
     if (typeof Chart === 'undefined') {
@@ -111,25 +199,12 @@ function getOrCreateChart(canvasId, config) {
     return chartInstances[canvasId];
 }
 
-// Export all core utilities to window for view modules
-window.API = API;
-window.formatCurrency = formatCurrency;
-window.formatDate = formatDate;
-window.formatDateTime = formatDateTime;
-window.apiGet = apiGet;
-window.apiPost = apiPost;
-window.showToast = showToast;
-window.showLoading = showLoading;
-window.showEmpty = showEmpty;
-window.CHART_COLORS = CHART_COLORS;
-window.getOrCreateChart = getOrCreateChart;
-
 // ─── Router ─────────────────────────────────────────────────
 const views = {
     dashboard: { title: 'Dashboard', render: (c) => window.renderDashboard(c) },
-    transactions: { title: 'Transactions', render: (c) => window.renderTransactions(c) },
+    transactions: { title: 'Ledger & Activity', render: (c) => window.renderTransactions(c) },
     analysis: { title: 'Anomalies & Forecast', render: (c) => window.renderAnalysis(c) },
-    scenarios: { title: 'Scenario Simulator', render: (c) => window.renderScenarios(c) },
+    scenarios: { title: 'What-If Simulator', render: (c) => window.renderScenarios(c) },
     recommendations: { title: 'Recommendations', render: (c) => window.renderRecommendations(c) },
     approval: { title: 'Approval Gate', render: (c) => window.renderApproval(c) },
     audit: { title: 'Audit Trail', render: (c) => renderAudit(c) },
@@ -138,220 +213,188 @@ const views = {
 let currentView = 'dashboard';
 
 async function navigateTo(viewName) {
-    if (!views[viewName]) return;
-    
+    if (!views[viewName]) viewName = 'dashboard';
     currentView = viewName;
     
-    // Update nav
+    // Update active nav styling
     document.querySelectorAll('.nav-link').forEach(link => {
         link.classList.toggle('active', link.dataset.view === viewName);
     });
     
-    // Update title
+    // Update page title
     const titleEl = document.getElementById('page-title');
     if (titleEl) titleEl.textContent = views[viewName].title;
     
-    // Render view
+    // Render view inside container
     const container = document.getElementById('view-container');
-    showLoading(container);
-    
-    try {
-        await views[viewName].render(container);
-    } catch (e) {
-        console.error('View render error:', e);
-        container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠️</div><div class="empty-state-text">Error loading view</div><div class="empty-state-hint">${e.message || ''}</div></div>`;
+    if (container) {
+        try {
+            showSkeleton(container);
+            await views[viewName].render(container);
+        } catch (e) {
+            console.error('Error rendering view ' + viewName + ':', e);
+            showEmpty(container, 'alertTriangle', 'Failed to load ' + views[viewName].title, e.message);
+        }
     }
     
-    // Close mobile sidebar
-    document.getElementById('sidebar')?.classList.remove('open');
+    // Close mobile drawer if open
+    closeMobileDrawer();
 }
 
-// ─── Init ───────────────────────────────────────────────────
-let isAppInitialized = false;
-
-function initApp() {
-    if (isAppInitialized) return;
-    isAppInitialized = true;
-
-    // Nav links
-    document.querySelectorAll('.nav-link').forEach(link => {
-        link.addEventListener('click', (e) => {
-            e.preventDefault();
-            navigateTo(link.dataset.view);
-        });
-    });
-    
-    // Mobile menu
-    document.getElementById('menu-toggle')?.addEventListener('click', () => {
-        document.getElementById('sidebar')?.classList.toggle('open');
-    });
-    
-    // Run analysis button
-    document.getElementById('btn-run-analysis')?.addEventListener('click', async () => {
-        try {
-            showToast('Running analysis pipeline...', 'info');
-            
-            // Run anomaly detection
-            await apiPost('/api/anomalies/detect');
-            
-            // Generate recommendations
-            const result = await apiPost('/api/recommendations/generate');
-            
-            showToast(`Analysis complete! ${result.count} recommendations generated.`, 'success');
-            
-            // Update badges
-            updateBadges();
-            
-            // Refresh current view
-            navigateTo(currentView);
-        } catch (e) {
-            showToast('Analysis failed: ' + e.message, 'error');
-        }
-    });
-    
-    // Modal close
-    document.getElementById('edit-modal-close')?.addEventListener('click', closeModal);
-    document.getElementById('edit-modal-cancel')?.addEventListener('click', closeModal);
-    document.querySelector('.modal-backdrop')?.addEventListener('click', closeModal);
-    
-    // Load initial view
-    navigateTo('dashboard');
-    updateBadges();
+function closeMobileDrawer() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    if (sidebar) sidebar.classList.remove('open');
+    if (overlay) overlay.classList.remove('active');
 }
 
-window.initApp = initApp;
-
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initApp);
-} else {
-    setTimeout(initApp, 0);
-}
-
+// ─── Global Badges Counter ──────────────────────────────────
 async function updateBadges() {
     try {
-        const pending = await apiGet('/api/pending-actions?status=pending');
-        const badge = document.getElementById('approval-badge');
-        if (pending.count > 0) {
-            badge.textContent = pending.count;
-            badge.style.display = 'inline-flex';
-        } else {
-            badge.style.display = 'none';
+        const [recs, actions] = await Promise.all([
+            apiGet('/api/recommendations'),
+            apiGet('/api/pending-actions'),
+        ]);
+        
+        const recBadge = document.getElementById('rec-badge');
+        if (recBadge) {
+            const activeRecs = (recs.recommendations || []).filter(r => r.status === 'active');
+            if (activeRecs.length > 0) {
+                recBadge.textContent = activeRecs.length;
+                recBadge.style.display = 'inline-block';
+            } else {
+                recBadge.style.display = 'none';
+            }
         }
         
-        const recs = await apiGet('/api/recommendations?status=active');
-        const recBadge = document.getElementById('rec-badge');
-        if (recs.recommendations.length > 0) {
-            recBadge.textContent = recs.recommendations.length;
-            recBadge.style.display = 'inline-flex';
-        } else {
-            recBadge.style.display = 'none';
+        const approvalBadge = document.getElementById('approval-badge');
+        if (approvalBadge) {
+            const pendingActions = (actions.actions || []).filter(a => a.status === 'pending');
+            if (pendingActions.length > 0) {
+                approvalBadge.textContent = pendingActions.length;
+                approvalBadge.style.display = 'inline-block';
+            } else {
+                approvalBadge.style.display = 'none';
+            }
         }
     } catch (e) {
-        // Badges are non-critical
+        console.warn('Error updating badges:', e);
     }
 }
 
-function closeModal() {
-    document.getElementById('edit-modal').style.display = 'none';
-}
-
+// ─── Edit Action Modal ──────────────────────────────────────
 function openEditModalById(actionId) {
-    const action = (window.pendingActionsCache && window.pendingActionsCache[actionId]) || null;
-    if (action) {
-        openEditModal(action);
-    } else {
-        apiGet(`/api/pending-actions/${actionId}`)
-            .then(act => openEditModal(act))
-            .catch(err => showToast('Failed to load action: ' + err.message, 'error'));
+    const action = window.pendingActionsCache?.[actionId];
+    if (!action) {
+        showToast('Action details not found in cache. Refreshing view...', 'warning');
+        return;
     }
+    openEditModal(action);
 }
 
 function openEditModal(action) {
     const modal = document.getElementById('edit-modal');
-    const title = document.getElementById('edit-modal-title');
     const body = document.getElementById('edit-modal-body');
-    const saveBtn = document.getElementById('edit-modal-save');
+    const title = document.getElementById('edit-modal-title');
     
-    title.textContent = `Edit: ${action.title}`;
+    title.textContent = `Edit Parameters: ${action.title}`;
     
     let params;
     try {
         params = typeof action.original_params === 'string' 
-            ? JSON.parse(action.original_params) 
-            : action.original_params;
+            ? JSON.parse(action.original_params) : (action.original_params || {});
     } catch { params = {}; }
     
-    let formHtml = '';
-    for (const [key, value] of Object.entries(params)) {
-        formHtml += `
-            <div class="form-group">
-                <label class="form-label">${key.replace(/_/g, ' ')}</label>
-                <input class="form-input" name="${key}" value="${value}" 
-                       type="${typeof value === 'number' ? 'number' : 'text'}"
-                       step="any">
-            </div>
-        `;
-    }
+    let formHtml = `
+        <div class="form-group">
+            <label class="form-label" for="edit-amount">Authorized Amount (₹)</label>
+            <input class="form-input" type="number" id="edit-amount" 
+                   value="${action.amount || ''}" step="100" min="0" placeholder="e.g. 5000">
+        </div>
+    `;
     
-    if (action.amount != null) {
+    for (const [key, val] of Object.entries(params)) {
         formHtml += `
             <div class="form-group">
-                <label class="form-label">Amount (₹)</label>
-                <input class="form-input" name="amount" value="${action.amount}" type="number" step="any">
+                <label class="form-label" for="param-${key}">${key.replace(/_/g, ' ')}</label>
+                <input class="form-input" type="text" id="param-${key}" 
+                       data-param="${key}" value="${val}">
             </div>
         `;
     }
     
     body.innerHTML = formHtml;
     
-    saveBtn.onclick = async () => {
-        const formData = {};
-        body.querySelectorAll('input').forEach(input => {
-            formData[input.name] = input.type === 'number' ? parseFloat(input.value) : input.value;
+    document.getElementById('edit-modal-save').onclick = async () => {
+        const newAmount = parseFloat(document.getElementById('edit-amount').value);
+        const newParams = {};
+        
+        body.querySelectorAll('[data-param]').forEach(input => {
+            const key = input.dataset.param;
+            let val = input.value;
+            if (!isNaN(val) && val !== '') val = Number(val);
+            newParams[key] = val;
         });
         
         try {
-            await apiPost(`/api/pending-actions/${action.id}/edit-approve`, {
-                edited_params: formData,
+            await apiPost(`/api/pending-actions/${action.id}/edit`, {
+                amount: isNaN(newAmount) ? null : newAmount,
+                params: newParams,
             });
-            showToast('Action edited and approved!', 'success');
-            closeModal();
-            navigateTo(currentView);
+            showToast('Parameters updated & authorized!', 'success');
+            modal.style.display = 'none';
+            navigateTo('approval');
             updateBadges();
         } catch (e) {
-            showToast('Error: ' + e.message, 'error');
+            showToast('Error saving: ' + e.message, 'error');
         }
     };
     
     modal.style.display = 'flex';
 }
 
-// Render audit view (simple table from audit trail)
+// ─── Institutional Audit Trail View ─────────────────────────
 async function renderAudit(container) {
     try {
         const data = await apiGet('/api/audit-trail?limit=100');
         
         if (!data.trail || data.trail.length === 0) {
-            showEmpty(container, '📋', 'No audit events yet', 'Run the analysis pipeline to generate events.');
+            showEmpty(container, 'audit', 'No audit events recorded yet', 'Run the analysis pipeline or execute actions to populate the cryptographic audit log.');
             return;
         }
         
         let html = `
             <div class="section-header">
-                <h2 class="section-title">Audit Trail</h2>
-                <span class="badge badge-low">${data.count} events</span>
+                <div>
+                    <h2 class="section-title">Cryptographic Decision Audit Ledger</h2>
+                    <div class="card-subtitle">Append-only, immutable record of every autonomous proposal, human gate decision, and execution outcome.</div>
+                </div>
+                <span class="badge badge-low">${data.count} Events Recorded</span>
             </div>
             <div class="card">
                 <div class="audit-timeline">
         `;
         
         for (const event of data.trail) {
-            const eventClass = event.event_type.replace(/\s/g, '_');
+            const isBlocked = event.event_type === 'execution_blocked';
+            const isApproved = event.event_type === 'approved';
+            const isRejected = event.event_type === 'rejected';
+            const isExecuted = event.event_type === 'executed_successfully';
+            
+            const badgeClass = isBlocked ? 'badge-high' : isApproved ? 'badge-success' : isRejected ? 'badge-rejected' : isExecuted ? 'badge-executed' : 'badge-low';
+            
             html += `
-                <div class="audit-event ${eventClass}">
-                    <div class="audit-event-type">${event.event_type.replace(/_/g, ' ').toUpperCase()}</div>
-                    <div class="audit-event-time">${formatDateTime(event.timestamp)} · Action: ${event.action_id || 'N/A'}</div>
-                    ${event.event_data ? `<div class="audit-event-data">${typeof event.event_data === 'object' ? JSON.stringify(event.event_data, null, 2) : event.event_data}</div>` : ''}
+                <div class="audit-event ${event.event_type}">
+                    <div class="audit-event-header">
+                        <div class="flex items-center gap-1">
+                            <span class="badge ${badgeClass}">${event.event_type.replace(/_/g, ' ').toUpperCase()}</span>
+                            ${event.action_id ? `<span style="font-size:11px;color:var(--text-tertiary);font-family:monospace">#${event.action_id}</span>` : ''}
+                        </div>
+                        <div class="audit-event-time">${formatDateTime(event.timestamp)}</div>
+                    </div>
+                    ${event.event_data ? `
+                        <div class="audit-event-data">${typeof event.event_data === 'object' ? JSON.stringify(event.event_data, null, 2) : event.event_data}</div>
+                    ` : ''}
                 </div>
             `;
         }
@@ -359,6 +402,124 @@ async function renderAudit(container) {
         html += '</div></div>';
         container.innerHTML = html;
     } catch (e) {
-        showEmpty(container, '❌', 'Failed to load audit trail', e.message);
+        showEmpty(container, 'alertTriangle', 'Failed to load audit ledger', e.message);
     }
+}
+
+// ─── Application Bootstrap ──────────────────────────────────
+function initApp() {
+    // Navigation click listeners
+    document.querySelectorAll('.nav-link').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const view = link.dataset.view;
+            if (view) navigateTo(view);
+        });
+    });
+    
+    // Mobile Drawer Toggle
+    const menuBtn = document.getElementById('menu-toggle');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    
+    if (menuBtn && sidebar && overlay) {
+        menuBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('active');
+        });
+        overlay.addEventListener('click', closeMobileDrawer);
+    }
+    
+    // Top-bar Run Analysis button
+    const runBtn = document.getElementById('btn-run-analysis');
+    if (runBtn) {
+        runBtn.addEventListener('click', async () => {
+            const originalText = runBtn.innerHTML;
+            runBtn.disabled = true;
+            runBtn.innerHTML = `${icon('refresh', 14)} Running models...`;
+            
+            try {
+                const result = await apiPost('/api/anomalies/detect');
+                showToast(`Analysis complete: ${result.anomalies?.length || 0} anomalies detected`, 'success');
+                
+                // Refresh current view & badges
+                navigateTo(currentView);
+                updateBadges();
+            } catch (e) {
+                showToast('Analysis error: ' + e.message, 'error');
+            } finally {
+                runBtn.disabled = false;
+                runBtn.innerHTML = originalText;
+            }
+        });
+    }
+    
+    // Modal Close handlers
+    const modal = document.getElementById('edit-modal');
+    const modalClose = document.getElementById('edit-modal-close');
+    const modalCancel = document.getElementById('edit-modal-cancel');
+    const modalBackdrop = document.getElementById('edit-modal-backdrop');
+    
+    if (modal) {
+        if (modalClose) modalClose.addEventListener('click', () => modal.style.display = 'none');
+        if (modalCancel) modalCancel.addEventListener('click', () => modal.style.display = 'none');
+        if (modalBackdrop) modalBackdrop.addEventListener('click', () => modal.style.display = 'none');
+    }
+    
+    // Keyboard Shortcuts
+    document.addEventListener('keydown', (e) => {
+        // Esc closes modal
+        if (e.key === 'Escape' && modal && modal.style.display === 'flex') {
+            modal.style.display = 'none';
+            return;
+        }
+        
+        // Don't trigger number shortcuts if typing in input/textarea/select
+        if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return;
+        
+        const keyMap = {
+            '1': 'dashboard',
+            '2': 'transactions',
+            '3': 'analysis',
+            '4': 'scenarios',
+            '5': 'recommendations',
+            '6': 'approval',
+            '7': 'audit',
+        };
+        
+        if (keyMap[e.key]) {
+            navigateTo(keyMap[e.key]);
+        }
+    });
+    
+    // Load initial view & counters
+    navigateTo('dashboard');
+    updateBadges();
+}
+
+// ─── Exports for Global View Modules ────────────────────────
+window.API = window.API || API;
+window.icon = icon;
+window.formatCurrency = formatCurrency;
+window.formatDate = formatDate;
+window.formatDateTime = formatDateTime;
+window.cleanTitle = cleanTitle;
+window.apiGet = apiGet;
+window.apiPost = apiPost;
+window.showToast = showToast;
+window.showLoading = showLoading;
+window.showSkeleton = showSkeleton;
+window.showEmpty = showEmpty;
+window.CHART_COLORS = CHART_COLORS;
+window.getOrCreateChart = getOrCreateChart;
+window.navigateTo = navigateTo;
+window.updateBadges = updateBadges;
+window.openEditModalById = openEditModalById;
+window.initApp = initApp;
+
+// Auto-run if DOM is already parsed
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    setTimeout(initApp, 10);
+} else {
+    document.addEventListener('DOMContentLoaded', initApp);
 }
