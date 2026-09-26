@@ -24,3 +24,7 @@ htmlcov/
 .DS_Store
 .vscode/
 .idea/
+.vercel
+.env*
+_uv/
+node_modules/
