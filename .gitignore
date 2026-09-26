@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# SQLite Database
+*.db
+*.sqlite3
+
+# Pytest / Cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE / OS
+.DS_Store
+.vscode/
+.idea/
