@@ -35,16 +35,19 @@ def main():
     print("[2/3] Checking synthetic data...")
     generate_synthetic_data()
     
+    port = int(os.environ.get("PORT", 8000))
+    is_dev = os.environ.get("ENV", "development").lower() == "development"
+    
     # Start server
-    print("[3/3] Starting server on http://localhost:8000")
-    print("       Dashboard: http://localhost:8000")
+    print(f"[3/3] Starting server on http://0.0.0.0:{port}")
+    print(f"       Dashboard: http://localhost:{port}")
     print("=" * 60)
     
     uvicorn.run(
         "backend.app:app",
         host="0.0.0.0",
-        port=8000,
-        reload=True,
+        port=port,
+        reload=is_dev,
         log_level="info"
     )
 

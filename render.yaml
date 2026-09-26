@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: finguard
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python run.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: ENV
+        value: production
+      - key: PORT
+        value: 8000
