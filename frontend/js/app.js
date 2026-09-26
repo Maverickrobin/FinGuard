@@ -440,7 +440,8 @@ function initApp() {
             
             try {
                 const result = await apiPost('/api/anomalies/detect');
-                showToast(`Analysis complete: ${result.anomalies?.length || 0} anomalies detected`, 'success');
+                const recResult = await apiPost('/api/recommendations/generate').catch(() => ({}));
+                showToast(`Pipeline complete: ${result.anomalies?.length || 0} anomalies evaluated · Action barriers updated`, 'success');
                 
                 // Refresh current view & badges
                 navigateTo(currentView);

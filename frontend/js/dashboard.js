@@ -150,7 +150,7 @@ async function renderDashboard(container) {
                             <div class="card-title">Expense Allocation</div>
                             <div class="card-subtitle">${data.current_month || 'Current Cycle'} breakdown</div>
                         </div>
-                        <span class="badge badge-low">11 Categories</span>
+                        <span class="badge badge-low">${formatCurrency(latest.expense || 0)} Total Outflow</span>
                     </div>
                     <div class="chart-container">
                         <canvas id="chart-categories"></canvas>
