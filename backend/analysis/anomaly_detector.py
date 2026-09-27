@@ -157,17 +157,29 @@ def _detect_recurring_price_changes() -> List[Dict]:
             
             if abs(pct_change) >= RECURRING_PRICE_CHANGE_PCT:
                 txn = group.iloc[i]
-                direction = "increased" if pct_change > 0 else "decreased"
-                severity = "high" if abs(pct_change) >= 0.30 else "medium"
+                is_increase = pct_change > 0
+                direction = "increased" if is_increase else "decreased"
+                # Price drops are positive savings insights (low severity), hikes are risks (medium/high)
+                if is_increase:
+                    severity = "high" if pct_change >= 0.30 else "medium"
+                    anomaly_type = "recurring_price_change"
+                    description = (
+                        f"{merchant} charge increased by {pct_change * 100:.0f}%: "
+                        f"₹{prev_amount:,.0f} → ₹{curr_amount:,.0f}"
+                    )
+                else:
+                    severity = "low"
+                    anomaly_type = "recurring_price_drop"
+                    description = (
+                        f"{merchant} bill decreased by {abs(pct_change) * 100:.0f}%: "
+                        f"₹{prev_amount:,.0f} → ₹{curr_amount:,.0f} (Savings)"
+                    )
                 
                 anomalies.append({
                     "id": f"anomaly-{uuid.uuid4().hex[:12]}",
                     "transaction_id": txn["id"],
-                    "anomaly_type": "recurring_price_change",
-                    "description": (
-                        f"{merchant} charge {direction} by {abs(pct_change)*100:.0f}%: "
-                        f"₹{prev_amount:,.0f} → ₹{curr_amount:,.0f}"
-                    ),
+                    "anomaly_type": anomaly_type,
+                    "description": description,
                     "severity": severity,
                     "category": txn.get("category", "Unknown"),
                     "expected_value": prev_amount,

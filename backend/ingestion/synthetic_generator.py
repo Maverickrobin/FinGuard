@@ -418,15 +418,16 @@ def generate_synthetic_data():
                 (cat, limit),
             )
         
-        # Set up a savings goal
+        # Set up a savings goal with realistic 18-month future timeline
+        future_goal_deadline = (datetime.now() + timedelta(days=540)).strftime("%Y-%m-%d")
         conn.execute("""
-            INSERT OR IGNORE INTO goals 
+            INSERT OR REPLACE INTO goals 
             (id, name, target_amount, current_amount, deadline, monthly_contribution, status)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         """, (
             "goal-emergency-fund",
             "Emergency Fund (6 months expenses)",
-            300000, 45000, "2026-03-31", 8000, "active",
+            300000, 45000, future_goal_deadline, 8000, "active",
         ))
     
     print(f"  ✓ Generated {len(all_transactions)} synthetic transactions (Apr-Sep 2025)")

@@ -24,6 +24,7 @@ def check_all_triggers() -> List[Dict]:
     
     fired.extend(_trigger_forecast_zero_crossing())
     fired.extend(_trigger_recurring_charge_jump())
+    fired.extend(_trigger_recurring_charge_drop())
     fired.extend(_trigger_category_over_budget())
     fired.extend(_trigger_goal_off_pace())
     fired.extend(_trigger_spending_trend_up())
@@ -64,33 +65,87 @@ def _trigger_forecast_zero_crossing() -> List[Dict]:
 
 
 def _trigger_recurring_charge_jump() -> List[Dict]:
-    """Trigger: A recurring charge jumped >15% from previous."""
+    """Trigger: A recurring charge jumped >15% from previous (genuine price hike)."""
     anomalies = get_anomalies()
     
     triggers = []
     for a in anomalies:
         if a["anomaly_type"] == "recurring_price_change" and a["severity"] in ("medium", "high"):
+            expected = a.get("expected_value", 0)
+            actual = a.get("actual_value", 0)
+            
+            # CRITICAL: Only fire if charge genuinely increased
+            if actual <= expected or expected <= 0:
+                continue
+            
+            change_pct = round(((actual - expected) / expected) * 100, 1)
+            merchant = a["description"].split(" charge")[0] if " charge" in a["description"] else "Unknown"
+            category = a.get("category", "Subscriptions")
+            
+            # Subscriptions can be cancelled; utilities/bills are adjusted via budget
+            if category == "Subscriptions" or merchant.lower() in ("netflix", "spotify", "prime", "hotstar"):
+                action = {
+                    "type": "cancel_subscription",
+                    "params": {
+                        "merchant": merchant,
+                        "amount": actual,
+                    },
+                }
+            else:
+                action = {
+                    "type": "adjust_budget",
+                    "params": {
+                        "category": category,
+                        "new_limit": round(actual * 1.15, 0),
+                    },
+                }
+            
             triggers.append({
                 "trigger_type": "recurring_charge_jump",
                 "severity": a["severity"],
                 "context": {
                     "anomaly_id": a["id"],
                     "description": a["description"],
-                    "expected_value": a["expected_value"],
-                    "actual_value": a["actual_value"],
-                    "category": a["category"],
-                    "change_pct": round(
-                        ((a["actual_value"] - a["expected_value"]) / a["expected_value"]) * 100
-                        if a["expected_value"] else 0, 1
-                    ),
+                    "expected_value": expected,
+                    "actual_value": actual,
+                    "category": category,
+                    "merchant": merchant,
+                    "change_pct": change_pct,
+                    "severity": a["severity"],
                 },
-                "suggested_action": {
-                    "type": "cancel_subscription",
-                    "params": {
-                        "merchant": a["description"].split(" charge")[0] if " charge" in a["description"] else "Unknown",
-                        "amount": a["actual_value"],
-                    },
+                "suggested_action": action,
+            })
+    
+    return triggers
+
+
+def _trigger_recurring_charge_drop() -> List[Dict]:
+    """Trigger: A recurring charge dropped (positive savings insight)."""
+    anomalies = get_anomalies()
+    
+    triggers = []
+    for a in anomalies:
+        if a["anomaly_type"] == "recurring_price_drop":
+            expected = a.get("expected_value", 0)
+            actual = a.get("actual_value", 0)
+            savings = round(expected - actual, 2)
+            merchant = a["description"].split(" bill")[0].split(" charge")[0] if " bill" in a["description"] or " charge" in a["description"] else "Unknown"
+            change_pct = round(((expected - actual) / expected) * 100, 1) if expected > 0 else 0
+            
+            triggers.append({
+                "trigger_type": "recurring_charge_drop",
+                "severity": "low",
+                "context": {
+                    "anomaly_id": a["id"],
+                    "description": a["description"],
+                    "expected_value": expected,
+                    "actual_value": actual,
+                    "savings": savings,
+                    "merchant": merchant,
+                    "category": a.get("category", "Utilities"),
+                    "change_pct": change_pct,
                 },
+                "suggested_action": None,  # Informational insight only
             })
     
     return triggers
@@ -171,17 +226,34 @@ def _trigger_goal_off_pace() -> List[Dict]:
         if not goal["deadline"]:
             continue
         
-        deadline = datetime.strptime(goal["deadline"], "%Y-%m-%d")
-        months_remaining = max(1, (deadline - now).days / 30)
-        remaining_amount = goal["target_amount"] - goal["current_amount"]
+        try:
+            deadline = datetime.strptime(goal["deadline"], "%Y-%m-%d")
+        except ValueError:
+            continue
         
+        # Calendar months calculation: (years diff * 12) + months diff
+        months_remaining = (deadline.year - now.year) * 12 + (deadline.month - now.month)
+        
+        # Guard against past or near-zero deadlines (which cause division into huge monthly spikes)
+        if months_remaining <= 0:
+            # If target already met, skip
+            if goal["current_amount"] >= goal["target_amount"]:
+                continue
+            # For overdue/passed targets, assume a realistic 12-month recovery horizon
+            months_remaining = 12
+            effective_deadline_str = f"{goal['deadline']} (Recovery 12mo)"
+        else:
+            effective_deadline_str = goal["deadline"]
+        
+        remaining_amount = goal["target_amount"] - goal["current_amount"]
         if remaining_amount <= 0:
             continue
         
-        required_monthly = remaining_amount / months_remaining
+        required_monthly = round(remaining_amount / months_remaining, 2)
+        current_contrib = goal["monthly_contribution"] or 0
         
-        if goal["monthly_contribution"] < required_monthly * 0.8:
-            shortfall = required_monthly - goal["monthly_contribution"]
+        if current_contrib < required_monthly * 0.8:
+            shortfall = round(required_monthly - current_contrib, 2)
             triggers.append({
                 "trigger_type": "goal_off_pace",
                 "severity": "medium",
@@ -192,16 +264,16 @@ def _trigger_goal_off_pace() -> List[Dict]:
                     "current_amount": goal["current_amount"],
                     "remaining": round(remaining_amount, 2),
                     "months_remaining": round(months_remaining, 1),
-                    "required_monthly": round(required_monthly, 2),
-                    "current_contribution": goal["monthly_contribution"],
-                    "monthly_shortfall": round(shortfall, 2),
-                    "deadline": goal["deadline"],
+                    "required_monthly": required_monthly,
+                    "current_contribution": current_contrib,
+                    "monthly_shortfall": shortfall,
+                    "deadline": effective_deadline_str,
                 },
                 "suggested_action": {
                     "type": "update_goal_contribution",
                     "params": {
                         "goal_id": goal["id"],
-                        "monthly_contribution": round(required_monthly, 2),
+                        "monthly_contribution": required_monthly,
                     },
                 },
             })

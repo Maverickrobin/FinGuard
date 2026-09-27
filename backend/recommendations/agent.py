@@ -35,6 +35,10 @@ def generate_recommendations() -> List[Dict]:
     
     Returns list of generated recommendations.
     """
+    # Step 0: Mark prior active recommendations as expired to avoid duplicates while respecting foreign keys
+    with get_db() as conn:
+        conn.execute("UPDATE recommendations SET status = 'expired' WHERE status = 'active'")
+
     # Step 1: Check triggers
     fired_triggers = check_all_triggers()
     
@@ -170,11 +174,23 @@ def _template_recommendation(trigger: Dict, impact: Dict) -> Dict:
             ),
         },
         "recurring_charge_jump": {
-            "title": "💰 Subscription price increased",
+            "title": (
+                f"💰 {ctx.get('merchant', 'Subscription')} subscription price increased"
+                if ctx.get('category') == 'Subscriptions'
+                else f"📈 {ctx.get('merchant', 'Recurring')} bill increased"
+            ),
             "description": (
-                f"{ctx.get('description', 'A recurring charge changed')}. "
-                f"That's a {ctx.get('change_pct', 0):.0f}% increase. "
-                f"Review whether this subscription is still worth the new price."
+                f"{ctx.get('merchant', 'Recurring charge')} increased by {abs(ctx.get('change_pct', 0)):.0f}%: "
+                f"₹{ctx.get('expected_value', 0):,.0f} → ₹{ctx.get('actual_value', 0):,.0f}. "
+                f"Review whether to adjust your budget cap or modify your plan."
+            ),
+        },
+        "recurring_charge_drop": {
+            "title": f"💡 {ctx.get('merchant', 'Recurring')} bill decreased",
+            "description": (
+                f"Good news! {ctx.get('merchant', 'Recurring bill')} decreased by {abs(ctx.get('change_pct', 0)):.0f}%: "
+                f"₹{ctx.get('expected_value', 0):,.0f} → ₹{ctx.get('actual_value', 0):,.0f}. "
+                f"You saved ₹{abs(ctx.get('savings', 0)):,.0f} this cycle."
             ),
         },
         "category_over_budget": {
@@ -223,7 +239,7 @@ def get_recommendations(status: str = None) -> List[Dict]:
             ).fetchall()
         else:
             rows = conn.execute(
-                "SELECT * FROM recommendations ORDER BY created_at DESC"
+                "SELECT * FROM recommendations WHERE status = 'active' ORDER BY created_at DESC"
             ).fetchall()
     
     from backend.database import dicts_from_rows

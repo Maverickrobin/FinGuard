@@ -6,14 +6,40 @@ import os
 import json
 from datetime import datetime
 from contextlib import contextmanager
+from contextvars import ContextVar
+from typing import List, Dict, Optional
+
+_active_profile_id: ContextVar[str] = ContextVar("active_profile_id", default="demo")
 
 DB_DIR = os.environ.get("DATABASE_DIR") or (
     "/tmp" if (os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
     else os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
 )
 DB_PATH = os.environ.get("DATABASE_PATH") or os.path.join(DB_DIR, "finguard.db")
+PROFILES_DIR = os.path.join(DB_DIR, "profiles")
+PROFILES_METADATA_FILE = os.path.join(DB_DIR, "profiles.json")
 
 _bootstrap_lock = False
+
+
+def set_active_profile(profile_id: Optional[str]):
+    """Set active profile ID in context."""
+    _active_profile_id.set(profile_id or "demo")
+
+
+def get_active_profile() -> str:
+    """Get currently active profile ID."""
+    return _active_profile_id.get()
+
+
+def get_db_path_for_profile(profile_id: Optional[str] = None) -> str:
+    """Return database path for given profile ID."""
+    pid = profile_id or get_active_profile()
+    if pid == "demo" or not pid:
+        return DB_PATH
+    os.makedirs(PROFILES_DIR, exist_ok=True)
+    safe_pid = "".join(c for c in pid if c.isalnum() or c in ("-", "_"))
+    return os.path.join(PROFILES_DIR, f"profile_{safe_pid}.db")
 
 
 SCHEMA_SQL = """
@@ -148,39 +174,50 @@ SCHEMA_SQL = """
 """
 
 
-def get_connection() -> sqlite3.Connection:
-    """Get a database connection with row factory enabled."""
+def get_connection(profile_id: Optional[str] = None) -> sqlite3.Connection:
+    """Get a database connection with row factory enabled for the active profile."""
     global _bootstrap_lock
     os.makedirs(DB_DIR, exist_ok=True)
-    db_existed = os.path.exists(DB_PATH) and os.path.getsize(DB_PATH) > 0
-    conn = sqlite3.connect(DB_PATH)
+    
+    target_path = get_db_path_for_profile(profile_id)
+    db_existed = os.path.exists(target_path) and os.path.getsize(target_path) > 0
+    
+    conn = sqlite3.connect(target_path)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
 
-    if not db_existed and not _bootstrap_lock:
-        _bootstrap_lock = True
-        try:
+    pid = profile_id or get_active_profile()
+
+    if not db_existed:
+        if pid == "demo" or not pid:
+            if not _bootstrap_lock:
+                _bootstrap_lock = True
+                try:
+                    conn.executescript(SCHEMA_SQL)
+                    conn.commit()
+                    from backend.ingestion.synthetic_generator import generate_synthetic_data
+                    generate_synthetic_data()
+                    from backend.analysis.anomaly_detector import detect_anomalies
+                    detect_anomalies()
+                    from backend.recommendations.agent import generate_recommendations
+                    generate_recommendations()
+                except Exception as e:
+                    print(f"Warning during auto-bootstrap: {e}")
+                finally:
+                    _bootstrap_lock = False
+        else:
+            # Custom profile: initialize schema
             conn.executescript(SCHEMA_SQL)
             conn.commit()
-            from backend.ingestion.synthetic_generator import generate_synthetic_data
-            generate_synthetic_data()
-            from backend.analysis.anomaly_detector import detect_anomalies
-            detect_anomalies()
-            from backend.recommendations.agent import generate_recommendations
-            generate_recommendations()
-        except Exception as e:
-            print(f"Warning during auto-bootstrap: {e}")
-        finally:
-            _bootstrap_lock = False
 
     return conn
 
 
 @contextmanager
-def get_db():
-    """Context manager for database connections."""
-    conn = get_connection()
+def get_db(profile_id: Optional[str] = None):
+    """Context manager for database connections scoped to active profile."""
+    conn = get_connection(profile_id=profile_id)
     try:
         yield conn
         conn.commit()
@@ -191,11 +228,67 @@ def get_db():
         conn.close()
 
 
-def init_db():
-    """Initialize all database tables."""
-    with get_db() as conn:
+def init_db(profile_id: Optional[str] = None):
+    """Initialize database tables for a specific profile or active profile."""
+    with get_db(profile_id=profile_id) as conn:
         conn.executescript(SCHEMA_SQL)
         print("  ✓ Database initialized")
+
+
+def get_all_profiles() -> List[Dict]:
+    """Retrieve all available profiles."""
+    profiles = [
+        {
+            "id": "demo",
+            "name": "Priya Sharma",
+            "role": "Software Engineer",
+            "income": 85000,
+            "city": "Bangalore",
+            "is_demo": True,
+            "created_at": "2025-04-01 00:00:00",
+        }
+    ]
+    if os.path.exists(PROFILES_METADATA_FILE):
+        try:
+            with open(PROFILES_METADATA_FILE, "r") as f:
+                saved = json.load(f)
+                if isinstance(saved, list):
+                    custom = [p for p in saved if p.get("id") != "demo"]
+                    profiles.extend(custom)
+        except Exception as e:
+            print(f"Error loading profiles: {e}")
+    return profiles
+
+
+def save_profile_metadata(profile_data: Dict):
+    """Save or update a profile in metadata registry."""
+    profiles = get_all_profiles()
+    existing_idx = next((i for i, p in enumerate(profiles) if p["id"] == profile_data["id"]), None)
+    if existing_idx is not None:
+        profiles[existing_idx] = profile_data
+    else:
+        profiles.append(profile_data)
+    
+    os.makedirs(DB_DIR, exist_ok=True)
+    with open(PROFILES_METADATA_FILE, "w") as f:
+        json.dump([p for p in profiles if p.get("id") != "demo"], f, indent=2)
+
+
+def delete_profile(profile_id: str) -> bool:
+    """Delete a custom profile and its database file."""
+    if profile_id == "demo":
+        return False
+    profiles = [p for p in get_all_profiles() if p.get("id") not in ("demo", profile_id)]
+    os.makedirs(DB_DIR, exist_ok=True)
+    with open(PROFILES_METADATA_FILE, "w") as f:
+        json.dump(profiles, f, indent=2)
+    db_path = get_db_path_for_profile(profile_id)
+    if os.path.exists(db_path):
+        try:
+            os.remove(db_path)
+        except Exception:
+            pass
+    return True
 
 
 def dict_from_row(row):

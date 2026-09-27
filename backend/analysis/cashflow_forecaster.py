@@ -116,8 +116,9 @@ def forecast_cashflow(
         disc_multiplier = 1.3 if is_weekend else 0.9
         disc_amount = discretionary_daily * disc_multiplier
         
-        # Add some noise for realism
-        noise = np.random.normal(0, disc_amount * 0.15)
+        # Add small deterministic weekend/weekday variance for realism
+        rng = np.random.RandomState(42 + day_offset)
+        noise = rng.normal(0, disc_amount * 0.05)
         disc_amount = max(0, disc_amount + noise)
         
         daily_expense += disc_amount
@@ -222,25 +223,51 @@ def _estimate_daily_discretionary(df: pd.DataFrame) -> float:
     return round(daily_avg, 2)
 
 
+def _normalize_overrides(overrides: Dict[str, float]) -> Dict[str, float]:
+    """Normalize override keys and handle aliases."""
+    normalized = {}
+    alias_map = {
+        "sip": "Investments",
+        "investments": "Investments",
+        "investment": "Investments",
+        "salary": "Salary",
+        "rent": "Rent",
+        "dining": "Dining",
+        "shopping": "Shopping",
+        "entertainment": "Entertainment",
+        "transport": "Transport",
+        "groceries": "Groceries",
+        "utilities": "Utilities",
+        "emi": "EMI",
+        "subscriptions": "Subscriptions",
+    }
+    for k, v in overrides.items():
+        canonical = alias_map.get(k.lower(), k)
+        normalized[canonical] = v
+    return normalized
+
+
 def _apply_overrides_recurring(items: List[Dict],
                                  overrides: Dict[str, float]) -> List[Dict]:
     """Apply overrides to recurring items."""
+    norm_overrides = _normalize_overrides(overrides)
     for item in items:
         category = item.get("category", "")
-        if category in overrides:
-            adjustment = overrides[category]
+        if category in norm_overrides:
+            adjustment = norm_overrides[category]
             if -1 <= adjustment <= 1:
                 # Percentage change
                 item["amount"] = round(item["amount"] * (1 + adjustment), 2)
             else:
                 # Absolute change
-                item["amount"] = round(item["amount"] + adjustment, 2)
+                item["amount"] = round(max(0, item["amount"] + adjustment), 2)
     return items
 
 
 def _apply_overrides_discretionary(daily_avg: float,
                                     overrides: Dict[str, float]) -> float:
     """Apply overrides to discretionary spending estimate."""
+    norm_overrides = _normalize_overrides(overrides)
     # Check for discretionary categories
     disc_categories = ["Dining", "Shopping", "Entertainment", "Transport", "Groceries"]
     
@@ -248,8 +275,8 @@ def _apply_overrides_discretionary(daily_avg: float,
     adjustment_count = 0
     
     for cat in disc_categories:
-        if cat in overrides:
-            adj = overrides[cat]
+        if cat in norm_overrides:
+            adj = norm_overrides[cat]
             if -1 <= adj <= 1:
                 total_adjustment += adj
             else:

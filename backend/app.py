@@ -1,11 +1,11 @@
-"""FastAPI application for FinGuard."""
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import os
 
-from backend.routes import dashboard, analysis, recommendations, approval
+from backend.database import set_active_profile
+from backend.routes import dashboard, analysis, recommendations, approval, profiles
 
 # Create app
 app = FastAPI(
@@ -23,7 +23,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Profile Context Middleware for Multi-Profile Scoping
+@app.middleware("http")
+async def profile_context_middleware(request: Request, call_next):
+    profile_id = (
+        request.headers.get("X-Profile-ID")
+        or request.query_params.get("profile_id")
+        or request.cookies.get("profile_id")
+        or "demo"
+    )
+    set_active_profile(profile_id)
+    response = await call_next(request)
+    return response
+
 # Register routes
+app.include_router(profiles.router)
 app.include_router(dashboard.router)
 app.include_router(analysis.router)
 app.include_router(recommendations.router)

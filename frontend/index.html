@@ -85,7 +85,7 @@
             </a>
         </div>
         
-        <div class="sidebar-footer">
+        <div class="sidebar-footer" onclick="openProfileSwitcherModal()" style="cursor:pointer" title="Click to switch profile">
             <div class="persona-info">
                 <div class="persona-avatar">PS</div>
                 <div>
@@ -107,6 +107,12 @@
                 <h1 id="page-title" class="page-title">Dashboard</h1>
             </div>
             <div class="top-bar-actions">
+                <div id="profile-topbar-pill" class="profile-topbar-pill" onclick="openProfileSwitcherModal()" title="Switch or create profile">
+                    <span class="persona-avatar-sm">PS</span>
+                    <span style="font-weight:600">Priya Sharma</span>
+                    <span class="badge badge-low" style="font-size:10px;padding:1px 6px">DEMO</span>
+                    <span style="color:var(--text-tertiary);margin-left:4px">▼</span>
+                </div>
                 <button class="btn btn-secondary btn-sm" id="btn-run-analysis" title="Re-evaluate anomaly models and cash flow forecast">
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
                     Run Analysis Pipeline
@@ -143,6 +149,7 @@
 
     <!-- Application Script Suite -->
     <script src="/static/js/app.js"></script>
+    <script src="/static/js/profiles.js"></script>
     <script src="/static/js/dashboard.js"></script>
     <script src="/static/js/transactions.js"></script>
     <script src="/static/js/analysis.js"></script>

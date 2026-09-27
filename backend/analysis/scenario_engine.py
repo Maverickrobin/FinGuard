@@ -85,26 +85,42 @@ def run_scenario(
     scenario = forecast_cashflow(days=days, overrides=overrides)
     
     # Compare
+    days_gained = _calculate_days_gained(
+        baseline["zero_crossing_date"],
+        scenario["zero_crossing_date"],
+    )
+    
+    bal_diff = round(
+        scenario["final_balance"] - baseline["final_balance"], 2
+    )
+
+    headline_delta = _compute_headline_delta(
+        baseline_final=baseline["final_balance"],
+        scenario_final=scenario["final_balance"],
+        baseline_zero=baseline["zero_crossing_date"],
+        scenario_zero=scenario["zero_crossing_date"],
+        days=days,
+        days_gained=days_gained,
+    )
+
     comparison = {
         "scenario_name": scenario_name,
         "overrides": overrides,
         "baseline_final_balance": baseline["final_balance"],
         "scenario_final_balance": scenario["final_balance"],
-        "balance_difference": round(
-            scenario["final_balance"] - baseline["final_balance"], 2
-        ),
+        "balance_difference": bal_diff,
+        "final_balance_diff": bal_diff,
         "baseline_zero_crossing": baseline["zero_crossing_date"],
         "scenario_zero_crossing": scenario["zero_crossing_date"],
-        "days_gained": _calculate_days_gained(
-            baseline["zero_crossing_date"],
-            scenario["zero_crossing_date"],
-        ),
+        "days_gained": days_gained,
+        "headline_delta": headline_delta,
     }
     
     return {
         "comparison": comparison,
         "baseline": baseline,
         "scenario": scenario,
+        "scenario_name": scenario_name,
     }
 
 
@@ -137,13 +153,113 @@ def _calculate_days_gained(baseline_zero: Optional[str],
         return None  # Neither crosses zero
     
     if baseline_zero is not None and scenario_zero is None:
-        return None  # Scenario avoids zero crossing entirely (good!)
+        return None  # Scenario avoids zero crossing entirely
     
     if baseline_zero is None and scenario_zero is not None:
-        return None  # Scenario causes zero crossing (bad!)
+        return None  # Scenario causes zero crossing
     
     from datetime import datetime
     base_date = datetime.strptime(baseline_zero, "%Y-%m-%d")
     scen_date = datetime.strptime(scenario_zero, "%Y-%m-%d")
     
     return (scen_date - base_date).days
+
+
+def _compute_headline_delta(
+    baseline_final: float,
+    scenario_final: float,
+    baseline_zero: Optional[str],
+    scenario_zero: Optional[str],
+    days: int,
+    days_gained: Optional[int],
+) -> Dict:
+    """Compute an authoritative headline delta comparing baseline vs scenario."""
+    bal_diff = round(scenario_final - baseline_final, 2)
+    
+    if baseline_zero and not scenario_zero:
+        subtext = f"Simulated overrides prevent cash balance from dropping below zero across all {days} days."
+        return {
+            "status": "shortfall_eliminated",
+            "headline": f"Shortfall eliminated (was {baseline_zero})",
+            "subtext": subtext,
+            "detail": subtext,
+            "badge": "No Shortfall Projected",
+            "badge_type": "success",
+            "days_gained": None,
+            "balance_difference": bal_diff,
+        }
+    elif baseline_zero and scenario_zero:
+        if days_gained is not None and days_gained > 0:
+            subtext = f"Baseline shortfall on {baseline_zero} delayed to {scenario_zero} (+{days_gained} days of runway)."
+            return {
+                "status": "shortfall_delayed",
+                "headline": f"Shortfall pushed back {days_gained} days",
+                "subtext": subtext,
+                "detail": subtext,
+                "badge": f"+{days_gained} Days Runway",
+                "badge_type": "warning",
+                "days_gained": days_gained,
+                "balance_difference": bal_diff,
+            }
+        elif days_gained is not None and days_gained < 0:
+            subtext = f"Deficit occurs sooner on {scenario_zero} compared to baseline {baseline_zero}."
+            return {
+                "status": "shortfall_advanced",
+                "headline": f"Shortfall accelerated by {abs(days_gained)} days",
+                "subtext": subtext,
+                "detail": subtext,
+                "badge": f"{days_gained} Days Runway",
+                "badge_type": "danger",
+                "days_gained": days_gained,
+                "balance_difference": bal_diff,
+            }
+        else:
+            subtext = f"Shortfall occurs on {scenario_zero}. Net liquidity difference: ₹{bal_diff:+,.0f}."
+            return {
+                "status": "shortfall_unchanged",
+                "headline": f"Shortfall date unchanged ({scenario_zero})",
+                "subtext": subtext,
+                "detail": subtext,
+                "badge": "Date Unchanged",
+                "badge_type": "neutral",
+                "days_gained": 0,
+                "balance_difference": bal_diff,
+            }
+    elif not baseline_zero and scenario_zero:
+        subtext = f"Baseline was solvent, but this scenario creates a liquidity breach on {scenario_zero}."
+        return {
+            "status": "shortfall_created",
+            "headline": f"Deficit triggered on {scenario_zero}",
+            "subtext": subtext,
+            "detail": subtext,
+            "badge": "Deficit Created",
+            "badge_type": "danger",
+            "days_gained": None,
+            "balance_difference": bal_diff,
+        }
+    else:
+        # Neither crosses zero
+        if bal_diff >= 0:
+            subtext = f"Both baseline and scenario remain fully solvent through {days} days. Ending balance improves by ₹{bal_diff:,.0f}."
+            return {
+                "status": "solvent_gain",
+                "headline": f"No shortfall projected (+₹{bal_diff:,.0f} ending reserve)",
+                "subtext": subtext,
+                "detail": subtext,
+                "badge": f"+₹{bal_diff:,.0f} Net Delta",
+                "badge_type": "success",
+                "days_gained": None,
+                "balance_difference": bal_diff,
+            }
+        else:
+            subtext = f"Both baseline and scenario remain solvent through {days} days. Ending balance is lower by ₹{abs(bal_diff):,.0f}."
+            return {
+                "status": "solvent_loss",
+                "headline": f"No shortfall projected ({bal_diff:+,.0f} reserve decrease)",
+                "subtext": subtext,
+                "detail": subtext,
+                "badge": f"₹{bal_diff:,.0f} Net Delta",
+                "badge_type": "warning",
+                "days_gained": None,
+                "balance_difference": bal_diff,
+            }

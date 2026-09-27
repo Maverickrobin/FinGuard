@@ -125,14 +125,38 @@ def classify_trigger(trigger: Dict) -> Dict:
         )
     
     elif trigger_type == "recurring_charge_jump":
-        return classify_impact(
-            moves_money=True,
-            amount=context.get("actual_value", 0),
-            recurring=True,
-            reversible=True,
-            signal_confidence=0.95,
-            changes_commitment=True,
-        )
+        # Single source of truth: Impact tier is computed once by the anomaly detector and reused here
+        anomaly_severity = trigger.get("severity") or trigger.get("context", {}).get("severity", "medium")
+        level = anomaly_severity.lower()
+        score = 85 if level == "high" else 50
+        return {
+            "level": level,
+            "score": score,
+            "reasoning": f"Recurring price increase flagged with {level.upper()} severity from anomaly detector",
+            "factors": {
+                "moves_money": True,
+                "amount": context.get("actual_value", 0),
+                "recurring": True,
+                "reversible": True,
+                "signal_confidence": 0.95,
+                "changes_commitment": level == "high",
+            },
+        }
+    
+    elif trigger_type == "recurring_charge_drop":
+        return {
+            "level": "low",
+            "score": 15,
+            "reasoning": "Recurring bill decrease provides positive savings without financial risk",
+            "factors": {
+                "moves_money": False,
+                "amount": context.get("savings", 0),
+                "recurring": True,
+                "reversible": True,
+                "signal_confidence": 0.95,
+                "changes_commitment": False,
+            },
+        }
     
     elif trigger_type == "category_over_budget":
         return classify_impact(

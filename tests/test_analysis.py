@@ -88,3 +88,56 @@ def test_scenario_simulation():
     assert "final_balance" in result["scenario"]
     # Reducing spending should result in a higher or equal final balance
     assert result["scenario"]["final_balance"] >= result["baseline"]["final_balance"]
+
+
+def test_recurring_charge_drop_vs_hike():
+    """Verify that decreased recurring charges are not flagged as price hikes."""
+    from backend.analysis.anomaly_detector import detect_anomalies
+    anomalies = detect_anomalies()
+    
+    # Anomaly types must distinguish drop vs hike
+    for a in anomalies:
+        if a["anomaly_type"] == "recurring_price_change":
+            # For hikes, actual must be greater than expected
+            assert a["actual_value"] > a["expected_value"]
+        elif a["anomaly_type"] == "recurring_price_drop":
+            # For drops, actual must be less than expected and severity should be low
+            assert a["actual_value"] < a["expected_value"]
+            assert a["severity"] == "low"
+
+
+def test_goal_off_pace_calculation():
+    """Verify Emergency Fund goal calculation produces a realistic monthly shortfall, not ₹255k."""
+    from backend.recommendations.triggers import check_all_triggers
+    triggers = check_all_triggers()
+    
+    goal_trigger = next((t for t in triggers if t.get("trigger_type") == "goal_off_pace"), None)
+    if goal_trigger:
+        ctx = goal_trigger["context"]
+        # Required monthly contribution must be reasonable (< ₹50,000)
+        assert ctx["required_monthly"] < 50000, f"implausible required monthly: {ctx['required_monthly']}"
+        assert ctx["months_remaining"] >= 6, f"months remaining too low: {ctx['months_remaining']}"
+
+
+def test_impact_classifier_consistency():
+    """Verify impact tier is consistent with anomaly severity."""
+    from backend.recommendations.impact_classifier import classify_trigger
+    
+    # High severity anomaly -> High impact recommendation
+    high_trigger = {
+        "trigger_type": "recurring_charge_jump",
+        "severity": "high",
+        "context": {"actual_value": 899.0, "severity": "high"}
+    }
+    assert classify_trigger(high_trigger)["level"] == "high"
+    
+    # Medium severity anomaly -> Medium impact recommendation
+    med_trigger = {
+        "trigger_type": "recurring_charge_jump",
+        "severity": "medium",
+        "context": {"actual_value": 2200.0, "severity": "medium"}
+    }
+    assert classify_trigger(med_trigger)["level"] == "medium"
+
+
+

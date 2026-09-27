@@ -16,7 +16,7 @@ async function renderAnalysis(container) {
 
         const hasZeroCrossing = !!forecast.zero_crossing_date;
         const outliers = anomalies.filter(a => a.anomaly_type === 'category_outlier');
-        const recurring = anomalies.filter(a => a.anomaly_type === 'recurring_price_change');
+        const recurring = anomalies.filter(a => a.anomaly_type === 'recurring_price_change' || a.anomaly_type === 'recurring_price_drop');
 
         const displayAnomalies = anomalyFilter === 'outlier' ? outliers 
             : anomalyFilter === 'recurring' ? recurring 
@@ -118,27 +118,35 @@ async function renderAnalysis(container) {
                     </div>
                 </div>
             ` : displayAnomalies.map(a => {
-                const isRecurring = a.anomaly_type === 'recurring_price_change';
+                const isRecurring = a.anomaly_type === 'recurring_price_change' || a.anomaly_type === 'recurring_price_drop';
+                const isDrop = a.anomaly_type === 'recurring_price_drop';
                 const isHigh = a.severity === 'high';
+                const badgeClass = isDrop ? 'badge-success' : isHigh ? 'badge-high' : 'badge-medium';
+                const titleText = isDrop 
+                    ? 'Recurring Bill Savings / Price Drop' 
+                    : isRecurring 
+                    ? 'Recurring Subscription Price Hike' 
+                    : 'Per-Category Statistical Outlier';
+
                 return `
                     <div class="anomaly-card">
-                        <div class="anomaly-icon ${a.severity}">
-                            ${icon(isRecurring ? 'refresh' : 'alertTriangle', 18)}
+                        <div class="anomaly-icon ${isDrop ? 'low' : a.severity}">
+                            ${icon(isDrop ? 'trendingDown' : isRecurring ? 'refresh' : 'alertTriangle', 18)}
                         </div>
                         <div class="anomaly-details">
                             <div class="anomaly-title">
-                                <span>${isRecurring ? 'Recurring Subscription Price Hike' : 'Per-Category Statistical Outlier'}</span>
-                                <span class="badge ${isHigh ? 'badge-high' : 'badge-medium'}">
-                                    ${a.severity.toUpperCase()}
+                                <span>${titleText}</span>
+                                <span class="badge ${badgeClass}">
+                                    ${isDrop ? 'SAVINGS' : a.severity.toUpperCase()}
                                 </span>
                                 ${a.category ? `<span class="badge badge-low">${a.category}</span>` : ''}
                             </div>
                             <div class="anomaly-desc">${a.description}</div>
                         </div>
                         <div class="anomaly-stat-pill">
-                            <div class="anomaly-stat-label">Deviation</div>
-                            <div class="anomaly-stat-value" style="color:${isHigh ? 'var(--rose-light)' : 'var(--amber-light)'}">
-                                ${isRecurring ? '+' + a.deviation_score + '%' : '+' + a.deviation_score + 'σ'}
+                            <div class="anomaly-stat-label">${isDrop ? 'Savings' : 'Deviation'}</div>
+                            <div class="anomaly-stat-value" style="color:${isDrop ? 'var(--emerald-light)' : isHigh ? 'var(--rose-light)' : 'var(--amber-light)'}">
+                                ${isDrop ? '-' + a.deviation_score + '%' : isRecurring ? '+' + a.deviation_score + '%' : '+' + a.deviation_score + 'σ'}
                             </div>
                         </div>
                     </div>

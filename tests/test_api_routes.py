@@ -106,3 +106,82 @@ def test_audit_trail_endpoints(client):
 
     summary_resp = client.get("/api/audit-summary")
     assert summary_resp.status_code == 200
+
+
+def test_scenario_dual_series_and_headline_delta(client):
+    """Verify scenario returns dual series, parameter aliases, and headline delta."""
+    # Test multi-lever parameter aliases (sip, salary, dining)
+    payload = {
+        "overrides": {
+            "sip": 0.20,
+            "salary": 0.10,
+            "Dining": -0.25
+        },
+        "days": 90
+    }
+    response = client.post("/api/scenario", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    
+    assert "baseline" in data
+    assert "scenario" in data
+    assert "comparison" in data
+    
+    # Dual series verification
+    assert "daily" in data["baseline"]
+    assert "daily" in data["scenario"]
+    assert len(data["baseline"]["daily"]) > 0
+    assert len(data["scenario"]["daily"]) == len(data["baseline"]["daily"])
+    
+    # Headline delta banner verification
+    comparison = data["comparison"]
+    assert "headline_delta" in comparison
+    assert "status" in comparison["headline_delta"]
+    assert "headline" in comparison["headline_delta"]
+    assert "detail" in comparison["headline_delta"]
+    assert "balance_difference" in comparison
+
+
+def test_profiles_endpoints_and_isolation(client):
+    """Verify profile creation, isolated data processing, and deletion."""
+    # 1. List profiles (demo profile present)
+    get_res = client.get("/api/profiles")
+    assert get_res.status_code == 200
+    profiles = get_res.json()["profiles"]
+    assert any(p["id"] == "demo" for p in profiles)
+
+    # 2. Create custom profile
+    create_res = client.post("/api/profiles", json={
+        "name": "Arjun Patel",
+        "role": "Consultant",
+        "income": 120000,
+        "starting_balance": 50000
+    })
+    assert create_res.status_code == 200
+    profile_id = create_res.json()["profile"]["id"]
+    assert profile_id.startswith("user_")
+
+    # 3. Quick-add template transactions to Arjun
+    quick_res = client.post(
+        f"/api/profiles/{profile_id}/quick-add",
+        json={"template_type": "freelancer"}
+    )
+    assert quick_res.status_code == 200
+    assert quick_res.json()["transactions_ingested"] > 0
+
+    # 4. Verify data isolation: Arjun's transactions are NOT visible under demo profile
+    demo_dash = client.get("/api/dashboard", headers={"X-Profile-ID": "demo"})
+    arjun_dash = client.get("/api/dashboard", headers={"X-Profile-ID": profile_id})
+    assert demo_dash.status_code == 200
+    assert arjun_dash.status_code == 200
+    assert demo_dash.json()["balance"] != arjun_dash.json()["balance"]
+
+    # 5. Clean up: Delete Arjun's profile
+    del_res = client.delete(f"/api/profiles/{profile_id}")
+    assert del_res.status_code == 200
+    assert del_res.json()["success"] is True
+
+    # 6. Verify Arjun is no longer listed
+    list_after = client.get("/api/profiles").json()["profiles"]
+    assert not any(p["id"] == profile_id for p in list_after)
+
