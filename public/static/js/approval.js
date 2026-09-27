@@ -158,7 +158,7 @@ function renderApprovalCard(action) {
                     <div class="approval-card-title">${cleanTitle(action.title)}</div>
                     <div class="approval-card-meta">
                         <span class="badge ${isHighImpact ? 'badge-high' : 'badge-medium'}">
-                            ${action.impact_level.toUpperCase()} IMPACT
+                            ${action.impact_level.charAt(0).toUpperCase() + action.impact_level.slice(1).toLowerCase()} impact
                         </span>
                         <span style="color:var(--text-tertiary)">Type: <code>${action.action_type}</code></span>
                         <span style="color:var(--text-tertiary)">· Proposed ${formatDateTime(action.created_at)}</span>
@@ -227,7 +227,7 @@ function renderDecidedCard(action) {
                 <div>
                     <div class="flex items-center gap-1">
                         <span style="font-weight:600;font-size:14px;color:var(--text-primary)">${cleanTitle(action.title)}</span>
-                        <span class="badge ${badgeClass}">${action.status.toUpperCase()}</span>
+                        <span class="badge ${badgeClass}">${action.status.charAt(0).toUpperCase() + action.status.slice(1).toLowerCase()}</span>
                     </div>
                     <div style="font-size:11.5px;color:var(--text-tertiary);margin-top:4px">
                         Decided: ${formatDateTime(action.decided_at)}

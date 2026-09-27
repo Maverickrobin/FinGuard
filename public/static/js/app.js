@@ -420,7 +420,7 @@ async function renderAudit(container) {
                 <div class="audit-event ${event.event_type}">
                     <div class="audit-event-header">
                         <div class="flex items-center gap-1">
-                            <span class="badge ${badgeClass}">${event.event_type.replace(/_/g, ' ').toUpperCase()}</span>
+                            <span class="badge ${badgeClass}">${(s => s.charAt(0).toUpperCase() + s.slice(1))(event.event_type.replace(/_/g, ' ').toLowerCase())}</span>
                             ${event.action_id ? `<span style="font-size:11px;color:var(--text-tertiary);font-family:monospace">#${event.action_id}</span>` : ''}
                         </div>
                         <div class="audit-event-time">${formatDateTime(event.timestamp)}</div>
