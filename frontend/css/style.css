@@ -1567,16 +1567,55 @@ tr:hover td {
 .hidden { display: none !important; }
 
 /* ─── Landing & Multi-Profile System ────────────────────────── */
+body.is-landing {
+    overflow-x: hidden;
+    background-color: var(--bg-canvas);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+body.is-landing .sidebar {
+    display: none !important;
+}
+
+body.is-landing .top-bar {
+    display: none !important;
+}
+
+body.is-landing .main-content {
+    margin-left: 0 !important;
+    width: 100vw !important;
+    max-width: 100% !important;
+    min-height: 100vh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+body.is-landing .view-container {
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 100vh !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
 .landing-hero {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    min-height: calc(100vh - 80px);
-    padding: 40px 20px;
+    min-height: 100vh;
+    padding: 60px 24px;
+    width: 100%;
     max-width: 980px;
     margin: 0 auto;
     text-align: center;
+    box-sizing: border-box;
 }
 
 .landing-badge {

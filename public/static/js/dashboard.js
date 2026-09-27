@@ -22,6 +22,13 @@ async function renderDashboard(container) {
             : 0;
             
         const netCashflow = (latest.income || 0) - (latest.expense || 0);
+        
+        const activeProfile = (typeof getActiveProfileObject === 'function')
+            ? getActiveProfileObject()
+            : { name: 'Priya Sharma', role: 'Software Engineer', income: 85000, is_demo: true };
+        const profileName = activeProfile.name || 'Priya Sharma';
+        const isDemo = activeProfile.id === 'demo' || activeProfile.is_demo;
+        const totalTxns = data.transaction_count || 0;
 
         let html = `
             <!-- Agent Executive Briefing Banner -->
@@ -36,10 +43,10 @@ async function renderDashboard(container) {
                             Continuous Monitoring Active
                         </div>
                         <div class="agent-banner-title">
-                            Monitoring Account Portfolio: Priya Sharma
+                            Monitoring Account Portfolio: ${profileName}
                         </div>
                         <div class="agent-banner-meta">
-                            245 transactions indexed across 3 linked institutions · 6-month historical baseline
+                            ${totalTxns} transactions indexed ${isDemo ? 'across 3 linked institutions · 6-month historical baseline' : 'in isolated user ledger'}
                         </div>
                     </div>
                 </div>
@@ -74,7 +81,7 @@ async function renderDashboard(container) {
                     </div>
                     <div class="stat-value">${formatCurrency(latest.income || 0)}</div>
                     <div class="stat-subtext positive">
-                        Baseline salary confirmed (₹85k/mo)
+                        ${activeProfile.income ? `Monthly income baseline: ${formatCurrency(activeProfile.income)}/mo` : 'Active income detected'}
                     </div>
                 </div>
 

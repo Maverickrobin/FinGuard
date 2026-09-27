@@ -172,7 +172,8 @@ async function renderLandingScreen(container) {
 
         container.innerHTML = html;
 
-        // Hide sidebar navigation while on landing page
+        // Activate standalone landing layout shell
+        document.body.classList.add('is-landing');
         const sidebar = document.getElementById('sidebar');
         if (sidebar) sidebar.style.display = 'none';
         const topBar = document.querySelector('.top-bar');
@@ -225,10 +226,11 @@ async function deleteCustomProfile(profileId) {
 }
 
 function restoreAppLayout() {
+    document.body.classList.remove('is-landing');
     const sidebar = document.getElementById('sidebar');
-    if (sidebar) sidebar.style.display = 'flex';
+    if (sidebar) sidebar.style.display = '';
     const topBar = document.querySelector('.top-bar');
-    if (topBar) topBar.style.display = 'flex';
+    if (topBar) topBar.style.display = '';
 }
 
 function openProfileSwitcherModal() {

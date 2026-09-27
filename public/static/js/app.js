@@ -71,8 +71,19 @@ function getApiBase() {
 }
 
 // ─── API Fetch Helpers ──────────────────────────────────────
+function getActiveProfileHeader() {
+    if (typeof getActiveProfileId === 'function') {
+        return getActiveProfileId();
+    }
+    return localStorage.getItem('finguard_active_profile_id') || 'demo';
+}
+
 async function apiGet(path) {
-    const res = await fetch(getApiBase() + path);
+    const res = await fetch(getApiBase() + path, {
+        headers: {
+            'X-Profile-ID': getActiveProfileHeader()
+        }
+    });
     if (!res.ok) {
         const err = await res.json().catch(() => ({ detail: res.statusText }));
         throw new Error(typeof err.detail === 'string' ? err.detail : `HTTP ${res.status}`);
@@ -81,10 +92,31 @@ async function apiGet(path) {
 }
 
 async function apiPost(path, body = {}) {
+    const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+    const headers = {
+        'X-Profile-ID': getActiveProfileHeader()
+    };
+    if (!isFormData) {
+        headers['Content-Type'] = 'application/json';
+    }
     const res = await fetch(getApiBase() + path, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        headers: headers,
+        body: isFormData ? body : JSON.stringify(body),
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: res.statusText }));
+        throw new Error(typeof err.detail === 'string' ? err.detail : `HTTP ${res.status}`);
+    }
+    return res.json();
+}
+
+async function apiDelete(path) {
+    const res = await fetch(getApiBase() + path, {
+        method: 'DELETE',
+        headers: {
+            'X-Profile-ID': getActiveProfileHeader()
+        }
     });
     if (!res.ok) {
         const err = await res.json().catch(() => ({ detail: res.statusText }));
@@ -213,6 +245,7 @@ const views = {
 let currentView = 'dashboard';
 
 async function navigateTo(viewName) {
+    document.body.classList.remove('is-landing');
     if (!views[viewName]) viewName = 'dashboard';
     currentView = viewName;
     
@@ -493,9 +526,23 @@ function initApp() {
         }
     });
     
-    // Load initial view & counters
-    navigateTo('dashboard');
-    updateBadges();
+    // Check initial profile state
+    const storedProfileId = localStorage.getItem('finguard_active_profile_id');
+    if (!storedProfileId) {
+        if (typeof renderLandingScreen === 'function') {
+            renderLandingScreen(document.getElementById('view-container'));
+        } else {
+            navigateTo('dashboard');
+        }
+    } else {
+        if (typeof getActiveProfileObject === 'function') {
+            const profile = getActiveProfileObject();
+            if (typeof updateSidebarProfile === 'function') updateSidebarProfile(profile);
+            if (typeof updateTopBarProfile === 'function') updateTopBarProfile(profile);
+        }
+        navigateTo('dashboard');
+        updateBadges();
+    }
 }
 
 // ─── Exports for Global View Modules ────────────────────────
@@ -507,6 +554,7 @@ window.formatDateTime = formatDateTime;
 window.cleanTitle = cleanTitle;
 window.apiGet = apiGet;
 window.apiPost = apiPost;
+window.apiDelete = apiDelete;
 window.showToast = showToast;
 window.showLoading = showLoading;
 window.showSkeleton = showSkeleton;

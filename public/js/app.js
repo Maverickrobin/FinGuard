@@ -245,6 +245,7 @@ const views = {
 let currentView = 'dashboard';
 
 async function navigateTo(viewName) {
+    document.body.classList.remove('is-landing');
     if (!views[viewName]) viewName = 'dashboard';
     currentView = viewName;
     
