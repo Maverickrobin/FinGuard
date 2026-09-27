@@ -87,24 +87,24 @@ async function renderLandingScreen(container) {
                 <!-- Dual Path Grid -->
                 <div class="landing-grid">
                     <!-- Path 1: Priya Sharma Demo -->
-                    <div class="landing-card demo-card" onclick="selectDemoProfile()">
+                    <div class="glass-panel landing-card demo-card" onclick="selectDemoProfile()">
                         <div class="landing-card-header">
-                            <span class="badge badge-low" style="font-weight:700">REHEARSED DEMO STORY</span>
+                            <span class="badge badge-low" style="font-weight:600">Curated reference scenario</span>
                             <span class="landing-card-icon">${icon('shieldCheck', 24)}</span>
                         </div>
                         <div class="landing-persona-row">
                             <div class="persona-avatar" style="width:44px;height:44px;font-size:16px">PS</div>
                             <div>
                                 <h3 style="margin:0 0 2px 0;font-size:18px;color:var(--text-primary)">Priya Sharma</h3>
-                                <div style="font-size:13px;color:var(--text-secondary)">Software Engineer, Bangalore • ₹85k/month</div>
+                                <div style="font-size:13px;color:var(--text-secondary)">Software Engineer, Bangalore • <span class="mono-num">₹85k</span>/month</div>
                             </div>
                         </div>
                         <p class="landing-card-desc">
                             Explore the complete curated reference dataset with pre-planted anomalies (Netflix price hike, discretionary variance), 90-day cashflow forecast, and governed human approval gate.
                         </p>
                         <div class="landing-features">
-                            <div class="landing-feat-item">✔ 245 seeded transactions across 6 months</div>
-                            <div class="landing-feat-item">✔ 3 planted anomalies with deterministic triggers</div>
+                            <div class="landing-feat-item">✔ <span class="mono-num">245</span> seeded transactions across <span class="mono-num">6</span> months</div>
+                            <div class="landing-feat-item">✔ <span class="mono-num">3</span> planted anomalies with deterministic triggers</div>
                             <div class="landing-feat-item">✔ Working approval barrier with cryptographic audit log</div>
                         </div>
                         <button class="btn btn-primary" style="width:100%;margin-top:18px">
@@ -113,9 +113,9 @@ async function renderLandingScreen(container) {
                     </div>
 
                     <!-- Path 2: Create Your Profile -->
-                    <div class="landing-card create-card" onclick="openOnboardingModal()">
+                    <div class="glass-panel landing-card create-card" onclick="openOnboardingModal()">
                         <div class="landing-card-header">
-                            <span class="badge badge-success" style="font-weight:700">LIVE INGESTION & RISK ENGINE</span>
+                            <span class="badge badge-success" style="font-weight:600">Live statement ingestion</span>
                             <span class="landing-card-icon" style="color:var(--emerald)">${icon('sparkles', 24)}</span>
                         </div>
                         <div class="landing-persona-row">
@@ -150,12 +150,12 @@ async function renderLandingScreen(container) {
                         </div>
                         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px">
                             ${customProfiles.map(p => `
-                                <div class="card p-2" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between" onclick="selectCustomProfile('${p.id}')">
+                                <div class="glass-panel p-2" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between" onclick="selectCustomProfile('${p.id}')">
                                     <div class="flex items-center gap-1">
                                         <div class="persona-avatar-sm">${p.name[0] || 'U'}</div>
                                         <div>
                                             <div style="font-weight:600;font-size:14px;color:var(--text-primary)">${p.name}</div>
-                                            <div style="font-size:11px;color:var(--text-tertiary)">${p.role} · ₹${Math.round(p.income/1000)}k/mo</div>
+                                            <div style="font-size:11px;color:var(--text-tertiary)">${p.role} · <span class="mono-num">₹${Math.round(p.income/1000)}k</span>/mo</div>
                                         </div>
                                     </div>
                                     <div class="flex items-center gap-1">

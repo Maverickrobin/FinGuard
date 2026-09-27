@@ -61,22 +61,60 @@ def create_pending_action(
     
     Returns the action ID. The action starts with status='pending'
     and CANNOT be executed until a human explicitly approves it.
+    
+    De-duplication: if an action with the same action_type AND
+    recommendation_id already exists with status='pending', the
+    existing row is updated (title, description, amount, rationale,
+    params refreshed) and its ID is returned — no duplicate is created.
     """
     if impact_level not in ("medium", "high"):
         raise ValueError(f"Only 'medium' and 'high' impact actions go through the gate, got '{impact_level}'")
     
-    action_id = f"action-{uuid.uuid4().hex[:12]}"
-    
     with get_db() as conn:
-        conn.execute("""
-            INSERT INTO pending_actions 
-            (id, recommendation_id, action_type, title, description, amount,
-             rationale, impact_level, status, original_params, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, datetime('now'))
-        """, (
-            action_id, recommendation_id, action_type, title, description,
-            amount, rationale, impact_level, json.dumps(original_params),
-        ))
+        # ── De-duplication check ──────────────────────────────────
+        existing = conn.execute("""
+            SELECT id FROM pending_actions
+            WHERE action_type = ? AND title = ? AND status = 'pending'
+            LIMIT 1
+        """, (action_type, title)).fetchone()
+        
+        if existing:
+            # Update the existing pending action in-place
+            existing_id = existing[0] if isinstance(existing, (tuple, list)) else existing["id"]
+            conn.execute("""
+                UPDATE pending_actions
+                SET title = ?, description = ?, amount = ?, rationale = ?,
+                    impact_level = ?, original_params = ?,
+                    created_at = datetime('now')
+                WHERE id = ?
+            """, (title, description, amount, rationale,
+                  impact_level, json.dumps(original_params), existing_id))
+            # Return existing_id after conn is released
+            _dedup_hit = existing_id
+        else:
+            _dedup_hit = None
+            # ── No duplicate — insert new row ─────────────────────
+            action_id = f"action-{uuid.uuid4().hex[:12]}"
+            conn.execute("""
+                INSERT INTO pending_actions 
+                (id, recommendation_id, action_type, title, description, amount,
+                 rationale, impact_level, status, original_params, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, datetime('now'))
+            """, (
+                action_id, recommendation_id, action_type, title, description,
+                amount, rationale, impact_level, json.dumps(original_params),
+            ))
+    
+    # ── Audit logging (outside DB connection) ─────────────────────
+    if _dedup_hit:
+        log_audit_event(_dedup_hit, "refreshed", {
+            "action_type": action_type,
+            "title": title,
+            "amount": amount,
+            "impact_level": impact_level,
+            "note": "Duplicate trigger — existing pending action updated in-place.",
+        })
+        return _dedup_hit
     
     # Audit: action proposed
     log_audit_event(action_id, "proposed", {

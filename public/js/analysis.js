@@ -137,7 +137,7 @@ async function renderAnalysis(container) {
                             <div class="anomaly-title">
                                 <span>${titleText}</span>
                                 <span class="badge ${badgeClass}">
-                                    ${isDrop ? 'SAVINGS' : a.severity.toUpperCase()}
+                                    ${isDrop ? 'Savings' : (a.severity.charAt(0).toUpperCase() + a.severity.slice(1).toLowerCase())}
                                 </span>
                                 ${a.category ? `<span class="badge badge-low">${a.category}</span>` : ''}
                             </div>

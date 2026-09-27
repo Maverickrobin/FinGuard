@@ -126,8 +126,8 @@ function renderRecCard(rec) {
             <div class="flex justify-between items-center mb-1">
                 <div class="flex items-center gap-1">
                     <span style="font-size:14px;font-weight:600;color:var(--text-primary)">${cleanTitle(rec.title)}</span>
-                    <span class="badge ${badgeClass}">${rec.impact_level.toUpperCase()}</span>
-                    <span class="badge ${rec.status === 'active' ? 'badge-low' : 'badge-success'}">${rec.status.toUpperCase()}</span>
+                    <span class="badge ${badgeClass}">${rec.impact_level.charAt(0).toUpperCase() + rec.impact_level.slice(1).toLowerCase()}</span>
+                    <span class="badge ${rec.status === 'active' ? 'badge-low' : 'badge-success'}">${rec.status.charAt(0).toUpperCase() + rec.status.slice(1).toLowerCase()}</span>
                 </div>
                 <span style="font-size:11px;color:var(--text-tertiary)">
                     Trigger: <code>${rec.trigger_type}</code>
